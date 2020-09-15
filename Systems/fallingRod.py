@@ -1,6 +1,6 @@
 import numpy as np
 from numpy import sin, cos
-from contactDynamics import ContactDynamics
+from TimeStepping.contactDynamics import ContactDynamics
 import matplotlib.pyplot as plt 
 from math import pi
 

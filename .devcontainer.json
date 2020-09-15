@@ -1,0 +1,6 @@
+{
+    "name": "pyDrake",
+    "image": "robotlocomotion/drake",
+    "forwardPorts": [3000],
+    "extensions": ["ms-python.python"]
+}

@@ -56,7 +56,7 @@ class ContactDynamics(ABC, MechanicalModel):
 
     def contacts(self, x):
         """
-        contacts: solve for the contact forces using Quadratic Programming (QP) 
+        contacts: solve for the contact forces using LCP
         contacts models the ground contact conditions using Linear Complementarity Problems (LCPs)
         """
         # Get the configuration and generalized velocity
@@ -93,6 +93,7 @@ class ContactDynamics(ABC, MechanicalModel):
         P[numN:numN + numT, numN+numT:] = u.transpose()
         P[numN + numT:, 0:numN] = np.identity(numN) * self.friction 
         P[numN + numT:, numN:numN+numT] = -1 * u
+        
         """       
         # Solve the LCP using Lemke's Algorithm
 
