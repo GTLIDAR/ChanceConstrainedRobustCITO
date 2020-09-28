@@ -1,7 +1,7 @@
 import numpy as np 
 from abc import ABC, abstractmethod 
 
-class MechanicalModel(ABC):
+class RigidBodyModel(ABC):
     # Define methods for the dynamic system properties
     @abstractmethod
     def inertia_matrix(self, q):
@@ -43,10 +43,7 @@ class MechanicalModel(ABC):
         """
         Semi-implicit Euler Integration
         """
-        N, _ = x.shape
-        nQ = N/2
-        q = x[:nQ]
-        dq = x[nQ:]
+        q, dq = np.split(x, 2)
         # Integrate the velocity first
         M, F, B = self.manipulator_dynamics(q,dq)
         dq = dq + h * np.linalg.inv(M).dot(F + B.dot(u))
@@ -68,3 +65,6 @@ class MechanicalModel(ABC):
             x[:, n] = self.integrate(dt, x[:, n-1], u[:,n])
             t[:, n] = t[:,n -1] + dt
         return (t,x)
+
+if __name__ == "__main__":
+    print('Hello world')
