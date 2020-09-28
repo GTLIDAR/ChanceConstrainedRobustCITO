@@ -5,7 +5,7 @@
     "extensions": [
         "ms-python.python"
     ],
-    "runArgs": [
-        "-e", "DISPLAY={env:$DISPLAY}"
-    ]
+    "containerEnv":{
+        "DISPLAY": "172.22.144.1:0.0"
+    }
 }
