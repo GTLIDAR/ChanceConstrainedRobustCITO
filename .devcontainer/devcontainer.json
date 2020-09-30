@@ -1,6 +1,9 @@
 {
     "name": "pyDrake",
-    "image": "robotlocomotion/drake",
+    "build": {"dockerfile": "Dockerfile"},
+    "settings":{
+        "git.path": "/usr/bin/git"
+    },
     "forwardPorts": [3000],
     "extensions": [
         "ms-python.python"
