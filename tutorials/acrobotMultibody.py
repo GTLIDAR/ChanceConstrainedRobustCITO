@@ -47,6 +47,13 @@ v = plant.GetVelocities(context)
 dq = plant.MapVelocityToQDot(context, v)
 print("The modified acrobot configuration is q = ", q, " and velocity v = ", v)
 print("The acrobot configuration rates are dq =", dq)
+# Finally, we can check for lower and upper joint limits
+qlow = plant.GetPositionLowerLimits()
+qhigh = plant.GetPositionUpperLimits()
+print(f'The acrobot has upper limits at {qhigh} and lower limits at {qlow}')
+
+
+
 
 ## DYNAMICS
 # We can get the mass matrix via inverse dynamics (note that CalcMassMatrix is not available in pyDrake):
