@@ -1,5 +1,5 @@
 # Python source code
 __pycache__/
-
+__init__.py
 # Editors
 .vscode/

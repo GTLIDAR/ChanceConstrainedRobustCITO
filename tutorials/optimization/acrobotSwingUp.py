@@ -94,12 +94,21 @@ plt.ylabel('Torque (Nm)')
 plt.xlabel('Time (s)')
 plt.show()
 
-# Drake Visualization
-# builder = DiagramBuilder()
-# source = builder.AddSystem(TrajectorySource(x_traj))
-# scene_graph = builder.AddSystem(SceneGraph())
+# Visualize the results
+# A Diagram is a collection of systems in a directed graph. To visualize the results, we need to attach the solution trajectory, a SceneGraph, and a visualizer together.
+# After constructing the Diagram, we need to
+#   1. Add systems to the Diagram
+#   2. Connect the systems in the Diagram
 
-# visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=plt_is_iteractive))
+builder = DiagramBuilder()
+# AddSystem is the generic method to add components to the Diagram.
+# TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
+source = builder.AddSystem(TrajectorySource(x_traj))
+scene_graph = builder.AddSystem(SceneGraph())
+
+visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
+builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
+
 
 
 print('success')

@@ -52,39 +52,12 @@ qlow = plant.GetPositionLowerLimits()
 qhigh = plant.GetPositionUpperLimits()
 print(f'The acrobot has upper limits at {qhigh} and lower limits at {qlow}')
 
-
-
-
-## DYNAMICS
-# We can get the mass matrix via inverse dynamics (note that CalcMassMatrix is not available in pyDrake):
-M = plant.CalcMassMatrixViaInverseDynamics(context)
-print('Acrobot mass matrix at q = ',q,' is M = ')
-print(M)
-# We can also get the combined coriolis, centripetal, and gyroscopic effects:
-Cv = plant.CalcBiasTerm(context)
-print("Acrobot bias term at q = ", q, "and v = ",v ,"is Cv = ")
-print(Cv)
-# We can separately get the gravitational effects
-N = plant.CalcGravityGeneralizedForces(context)
-print("Acrobot gravitational generalized forces at q = ", q," is N = ")
-print(N)
-# Evaluating the controls
-nU = plant.num_actuated_dofs()
-nA = plant.num_actuators()
-print('Acrobot has ', nU, ' actuated joint(s) and ', nA, ' actuator(s)')
-# We can get the actuation matrix, a permutation  matrix as:
-B = plant.MakeActuationMatrix()
-print('The acutator selection matrix for acrobot is B = ')
-print(B)
-# Note that calculating the dynamics in this fashion is not computationally efficient. It would be more efficient to use plant.CalcInverseDynamics instead, given the generalized acceleration and applied forces
-
 ## KINEMATICS and GEOMETRY
 # Let's start with the frames in Acrobot
 nF = plant.num_frames()
 nJ = plant.num_joints()
 print(f"Acrobot has {nF} frames and {nJ} joints")
-nC = plant.num_collision_geometries()
-print(f"Acrobot has {nC} collision geometries")
+
 # We can get the world body and world frame
 wbody = plant.world_body()
 wframe = plant.world_frame()

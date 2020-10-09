@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<robot name = "FallingBox">
+    <link name = "box">
+        <visual>
+            <origin xyz = "0 0 0"/>
+            <geometry>
+                <box size="1 1 1"/>
+            </geometry>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+        <!--Put collision points at every corner of the box-->
+        <!--First collision point-->
+        <collision>
+            <origin xyz="0.5 0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Second collision point-->
+        <collision>
+            <origin xyz="-0.5 0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!-- Third collision point-->
+        <collision>
+            <origin xyz="0.5 -0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Fourth collision point-->
+        <collision>
+            <origin xyz="-0.5 -0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Fifth collision point-->
+        <collision>
+            <origin xyz="0.5 0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Sixth collision point-->
+        <collision>
+            <origin xyz="-0.5 0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Seventh collision point-->
+        <collision>
+            <origin xyz="0.5 -0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Eigth collision point-->
+        <collision>
+            <origin xyz="-0.5 -0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+    </link>
+</robot>
