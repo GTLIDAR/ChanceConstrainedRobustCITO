@@ -7,9 +7,8 @@ Luke Drnach
 October 5, 2020
 """
 
-from pydrake.all import MathematicalProgram, MultibodyForces
 import numpy as np 
-
+from pydrake.all import MathematicalProgram, MultibodyForces
 
 class ContactImplicitDirectTranscription(MathematicalProgram):
     """
@@ -61,7 +60,7 @@ class ContactImplicitDirectTranscription(MathematicalProgram):
         qlow = self.plant.GetPositionLowerLimits()
         # Assert that the joint limits be two-sided
         low_inf = np.isinf(qlow)
-        high_inf = np.ising(qhigh)
+        high_inf = np.isinf(qhigh)
         assert low_inf == high_inf
         if not all(low_inf):
             nJL = sum(low_inf)
@@ -166,7 +165,7 @@ class ContactImplicitDirectTranscription(MathematicalProgram):
         #TODO: Implement getter for normal distance
         idx = np.cumsum([self.x.shape[0], self.numN])
         x, fN, _ = np.split(z)
-        phi = self.get_normal_distance(x)
+        phi = self.plant.get_normal_distance(x)
         return np.concatenate((phi, fN, phi*fN), axis=0)
 
     def __sliding_velocity_constraint(self, z):
