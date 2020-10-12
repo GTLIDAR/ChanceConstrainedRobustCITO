@@ -1,9 +1,9 @@
 import numpy as np
 from math import pi
 
-from Systems.Rod import Rod
-from TimeStepping.RigidContactModel import RigidContactModel
-from TimeStepping.Terrain import FlatTerrain2D
+from systems.rod import Rod
+from systems.timestepping_old import RigidContactModel
+from systems.terrain import FlatTerrain2D
 
 # Create rigid body model with contact
 model = RigidContactModel(plant=Rod(m=1, l=0.5, r=0.05, J=0.002), terrain=FlatTerrain2D())

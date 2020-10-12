@@ -5,7 +5,7 @@ October 12, 2020
 """
 import numpy as np
 import unittest
-from Systems import TimeSteppingMultibodyPlant
+from systems.timestepping import TimeSteppingMultibodyPlant
 
 class TestTimeStepping(unittest.TestCase):
     @classmethod

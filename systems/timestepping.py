@@ -12,7 +12,7 @@ import numpy as np
 from math import pi
 from pydrake.all import MultibodyPlant, DiagramBuilder, SceneGraph,AddMultibodyPlantSceneGraph, JacobianWrtVariable, AngleAxis, RotationMatrix
 from pydrake.multibody.parsing import Parser
-from TimeStepping.Terrain import FlatTerrain
+from systems.terrain import FlatTerrain
 from utilities import FindResource
 
 class TimeSteppingMultibodyPlant(MultibodyPlant):
