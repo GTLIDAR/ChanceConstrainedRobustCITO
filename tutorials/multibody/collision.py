@@ -10,7 +10,7 @@ from os import path
 from sys import exit
 # PyDrake Imports 
 from pydrake.common import FindResourceOrThrow
-from pydrake.all import MultibodyPlant, DiagramBuilder, AddMultibodyPlantSceneGraph
+from pydrake.all import MultibodyPlant, DiagramBuilder, AddMultibodyPlantSceneGraph, RigidTransform
 from pydrake.multibody.parsing import Parser
 
 # Import the model from a URDF file
@@ -25,18 +25,30 @@ print(model_file)
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, 0.001)
 box = Parser(plant).AddModelFromFile(model_file)
+body_inds = plant.GetBodyIndices(box)
+base_frame = plant.get_body(body_inds[0]).body_frame()
+world_frame = plant.world_frame()
+plant.WeldFrames(world_frame, base_frame, RigidTransform())
 plant.Finalize()
 context = plant.CreateDefaultContext()
+print(f"fallingbox has {plant.num_positions()} position coordinates")
 # We will also need a scene graph inspector
 inspector = scene_graph.model_inspector()
 # Based on the URDF, Box should have 8 collision geometries
 print(f"Box has {plant.num_collision_geometries()} collision geometries")
 # Locate the collision geometries and contact points
 # First get the rigid body elements
+collisionIds = []
 body_inds = plant.GetBodyIndices(box)
-body = plant.get_body(body_inds[0])
-collisionIds = plant.GetCollisionGeometriesForBody(body)
+for ind in body_inds:
+    body = plant.get_body(ind)
+    collisionIds.append(plant.GetCollisionGeometriesForBody(body))
 
+# Flatten the list
+collisionIds = [id for id_list in collisionIds for id in id_list if id_list]
+# Move the box vertically upward to make the example slightly more interesting
+plant.SetPositions(context, [0, 0, 1, 0, 0, 0])
+# Loop over the collision identifiers
 for id in collisionIds:
     # Get the frame in which the collision geometry resides
     frameId = inspector.GetFrameId(id)
@@ -45,3 +57,9 @@ for id in collisionIds:
     R = inspector.GetPoseInFrame(id)
     # Print the pose in homogeneous coordinates
     print(f"Collision geometry in frame {frame_name} with pose \n{R.GetAsMatrix4()}")
+    # Note that the frameId is NOT the same as the FrameIndex, and cannot be used to the get the frame from MultibodyPlant. We can strip the frame name from the ID and use that instead
+    name = frame_name.split("::")
+    body_frame = plant.GetFrameByName(name[-1])
+    # Then we can calculate the position in world coordinates
+    world_pt = plant.CalcPointsPositions(context, body_frame, R.translation(), world_frame)
+    print(f"In world coordinates, the collision point is\n {world_pt}")    

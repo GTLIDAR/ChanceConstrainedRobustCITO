@@ -87,7 +87,7 @@ class FlatTerrain2D(Terrain):
 
 class FlatTerrain(Terrain):
     """ Implementation of 3-dimensional flat terrain with no slope """
-    def __init__(self, height=0, friction=0.5):
+    def __init__(self, height=0.0, friction=0.5):
         """ Constructs the terrain with the specified height and friction coefficient """
         self.height = height
         self.friction = friction
@@ -101,7 +101,9 @@ class FlatTerrain(Terrain):
         Return values:
             y: (3x1), the point on the terrain which is nearest to x
         """
-        return np.array([x[0:1], self.height])
+        terrain_pt = np.copy(x)
+        terrain_pt[-1] = self.height
+        return terrain_pt
 
     def local_frame(self, _):
         """
@@ -112,7 +114,7 @@ class FlatTerrain(Terrain):
         Return values:
             R: a (3x3) array. The first row is the terrain normal vector, the remaining rows are the terrain tangential vectors
         """
-        return np.array([[0,0,1], [1,0,0], [0,1,0]])
+        return np.array([[0.,0.,1.], [1.,0.,0.], [0.,1.,0.]])
 
     def get_friction(self, _):
         """
