@@ -6,7 +6,7 @@ October 12, 2020
 import numpy as np
 import unittest
 from systems.timestepping import TimeSteppingMultibodyPlant
-#TODO: Sort out why the normal distances are all zero
+#TODO: Write tests for testing autodiff functions
 class TestTimeStepping(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -61,6 +61,21 @@ class TestTimeStepping(unittest.TestCase):
         friction_coeff = self._model.GetFrictionCoefficients(self.context)
         # Check that there are 8 of them
         self.assertEqual(len(friction_coeff), 8, msg="wrong number of friction coefficients")
+
+    def test_autodiff_finalized(self):
+        """Test that the autodiff copy is finalized"""
+        # Get the autodiff copy
+        copy_ad = self._model.toAutoDiffXd()
+        # Check that the copy is finalized
+        self.assertTrue(copy_ad.plant.is_finalized(), msg="AutoDiff copy not finalized")
+
+    def test_autodiff_collisions(self):
+        """Test that the autodiff copy gets the collision frames"""
+        # Get the autodiff copy
+        copy_ad = self._model.toAutoDiffXd()
+        # Check that the number of collision frames and poses is equal to the original
+        self.assertEqual(len(copy_ad.collision_frames), len(self._model.collision_frames), msg = "wrong number of collision frames")
+        self.assertEqual(len(copy_ad.collision_poses), len(self._model.collision_poses), msg = "wrong number of collision poses")
 
 if __name__ == "__main__":
     unittest.main()

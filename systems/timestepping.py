@@ -16,6 +16,8 @@ from pydrake.all import MultibodyPlant, DiagramBuilder, SceneGraph,AddMultibodyP
 from pydrake.multibody.parsing import Parser
 from systems.terrain import FlatTerrain
 from utilities import FindResource
+#TODO: Implemet toAutoDiffXd method to convert to autodiff class
+
 
 class TimeSteppingMultibodyPlant():
     """
@@ -48,18 +50,8 @@ class TimeSteppingMultibodyPlant():
         """
         # Finalize the underlying plant model
         self.plant.Finalize()
-        inspector = self.scene_graph.model_inspector()
-        # Locate collision geometries and contact points
-        body_inds = self.plant.GetBodyIndices(self.model_index)
-        # Get the collision frames for each body in the model
-        for body_ind in body_inds:
-            body = self.plant.get_body(body_ind)
-            collision_ids = self.plant.GetCollisionGeometriesForBody(body)
-            for id in collision_ids:
-                # get and store the collision geometry frames
-                frame_name = inspector.GetName(inspector.GetFrameId(id)).split("::")
-                self.collision_frames.append(self.plant.GetFrameByName(frame_name[-1]))
-                self.collision_poses.append(inspector.GetPoseInFrame(id))
+        # Idenify and store collision geometries
+        self.__store_collision_geometries()
 
     def GetNormalDistances(self, context):   
         """
@@ -70,8 +62,9 @@ class TimeSteppingMultibodyPlant():
         Return values:
             distances: a numpy array of signed distance values
         """
+        qtype = self.plant.GetPositions(context).dtype
         nCollisions = len(self.collision_frames)
-        distances = np.zeros((nCollisions,))
+        distances = np.zeros((nCollisions,), dtype=qtype)
         for n in range(0, nCollisions):
             # Transform collision frames to world coordinates
             collision_pt = self.plant.CalcPointsPositions(context, 
@@ -96,9 +89,10 @@ class TimeSteppingMultibodyPlant():
         Return Values
             (Jn, Jt): the tuple of contact Jacobians. Jn represents the normal components and Jt the tangential components
         """
+        qtype = self.plant.GetPositions(context).dtype
         nCollision = len(self.collision_frames)
-        Jn = np.zeros((nCollision, self.plant.num_positions()))
-        Jt = np.zeros((nCollision * 4 * (self._dlevel+1), self.plant.num_positions()))
+        Jn = np.zeros((nCollision, self.plant.num_positions()),dtype=qtype)
+        Jt = np.zeros((nCollision * 4 * (self._dlevel+1), self.plant.num_positions()),dtype=qtype)
         for n in range(0, nCollision):
             # Transform collision frames to world coordinates
             collision_pt = self.plant.CalcPointsPositions(context,
@@ -111,7 +105,7 @@ class TimeSteppingMultibodyPlant():
             terrain_frame = self.terrain.local_frame(terrain_pt)
             normal, tangent = np.split(terrain_frame, [1], axis=0)
             # Discretize to the chosen level 
-            tangent = self._discretize_friction(normal, tangent)  
+            tangent = self.__discretize_friction(normal, tangent)  
             # Get the contact point Jacobian
             J = self.plant.CalcJacobianTranslationalVelocity(context,
                  JacobianWrtVariable.kQDot,
@@ -144,11 +138,40 @@ class TimeSteppingMultibodyPlant():
         # Return list of friction coefficients
         return friction_coeff
 
+    def toAutoDiffXd(self):
+        """Covert the MultibodyPlant to use AutoDiffXd instead of Float"""
+
+        # Create a new TimeSteppingMultibodyPlant model
+        copy_ad = TimeSteppingMultibodyPlant(file=None, terrain=self.terrain, dlevel=self._dlevel)
+        # Instantiate the plant as the Autodiff version
+        copy_ad.plant = self.plant.ToAutoDiffXd()
+        copy_ad.scene_graph = self.scene_graph.ToAutoDiffXd()
+        copy_ad.model_index = self.model_index
+        # Store the collision frames to finalize the model
+        copy_ad.__store_collision_geometries()
+        return copy_ad
+
     def set_discretization_level(self, dlevel=0):
         """Set the friction discretization level. The default is 0"""
         self._dlevel = dlevel
 
-    def _discretize_friction(self, normal, tangent):
+    def __store_collision_geometries(self):
+        """Identifies the collision geometries in the model and stores their parent frame and pose in parent frame in lists"""
+        # Create a diagram and a scene graph
+        inspector = self.scene_graph.model_inspector()
+        # Locate collision geometries and contact points
+        body_inds = self.plant.GetBodyIndices(self.model_index)
+        # Get the collision frames for each body in the model
+        for body_ind in body_inds:
+            body = self.plant.get_body(body_ind)
+            collision_ids = self.plant.GetCollisionGeometriesForBody(body)
+            for id in collision_ids:
+                # get and store the collision geometry frames
+                frame_name = inspector.GetName(inspector.GetFrameId(id)).split("::")
+                self.collision_frames.append(self.plant.GetFrameByName(frame_name[-1]))
+                self.collision_poses.append(inspector.GetPoseInFrame(id))
+
+    def __discretize_friction(self, normal, tangent):
         """
         Rotates the terrain tangent vectors to discretize the friction cone
         

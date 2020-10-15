@@ -1,0 +1,63 @@
+"""
+unittests for contactimplicit.py
+
+Luke Drnach
+October 14, 2020
+"""
+
+import numpy as np
+import unittest
+from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from systems.timestepping import TimeSteppingMultibodyPlant
+
+class ContactImplicitTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Setup and finalize the plant model, and create the optimization problem"""
+        cls.model = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
+        cls.model.Finalize()
+        cls.opt = ContactImplicitDirectTranscription(plant=cls.model,
+                                                context=cls.model.plant.CreateDefaultContext(),
+                                                num_time_samples=101,
+                                                minimum_timestep=0.001,
+                                                maximum_timestep=0.1)
+    
+    def setUp(self):
+        """Defines some dummy variables for use in each constraint evaluation"""
+        self.h = np.ones((self.opt.h.shape[0],))
+        self.u = np.ones((self.opt.u.shape[0],))
+        self.x = np.zeros((self.opt.x.shape[0],))
+        self.l = np.zeros((self.opt.l.shape[0],))
+        context = self.model.plant.CreateDefaultContext()
+        Jn, Jt = self.model.GetContactJacobians(context)
+        self.numN = Jn.shape[0]
+        self.numT = Jt.shape[0]
+
+    def test_opt_creation(self):
+        """Check that the optimization can be set up"""        
+        # First check that the object is not none
+        self.assertIsNotNone(self.opt, msg="Optimization creation returned None")
+        
+    def test_eval_dynamic_constraint(self):
+        """Check that the dynamic constraint can be evaluated"""
+        z = np.concatenate([self.h, self.x, self.x, self.u, self.l], axis=0)
+        r = self.opt._ContactImplicitDirectTranscription__backward_dynamics(z)
+        self.assertEqual(r.shape[0], self.x.shape[0], msg="backwards_dynamics returns a vector with the wrong size")
+        
+    def test_eval_normaldist_constraint(self):
+        """Check that the normal distance constraint can be evaluated"""
+        z = np.concatenate([self.x, self.l[0:self.numN]], axis=0)
+        r = self.opt._ContactImplicitDirectTranscription__normal_distance_constraint(z)
+        self.assertEqual(r.shape[0], 3*self.numN, msg="normal distance constraint returns the wrong number of constraints")
+
+    def test_eval_slidingvel_constraint(self):
+        """Check that the sliding velocity constraint can be evaluated"""
+        z = np.concatenate([self.x,self.l[self.numN:]], axis=0)
+        r = self.opt._ContactImplicitDirectTranscription__sliding_velocity_constraint(z)
+        self.assertEqual(r.shape[0], 3*self.numT, msg="Sliding velocity constraint returns the wrong number of constraints")
+
+    def test_eval_friccone_constraint(self):
+        """Check that the friction cone constraint can be evaluated"""
+        z = np.concatenate([self.x, self.l], axis=0)
+        r = self.opt._ContactImplicitDirectTranscription__friction_cone_constraint(z)
+        self.assertEqual(r.shape[0], 3*self.numN, msg="Friction cone constraint returns the wrong number of constraints") 
