@@ -17,7 +17,7 @@ class ContactImplicitTest(unittest.TestCase):
         cls.model = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
         cls.model.Finalize()
         cls.opt = ContactImplicitDirectTranscription(plant=cls.model,
-                                                context=cls.model.plant.CreateDefaultContext(),
+                                                context=cls.model.multibody.CreateDefaultContext(),
                                                 num_time_samples=101,
                                                 minimum_timestep=0.001,
                                                 maximum_timestep=0.1)
@@ -28,7 +28,7 @@ class ContactImplicitTest(unittest.TestCase):
         self.u = np.ones((self.opt.u.shape[0],))
         self.x = np.zeros((self.opt.x.shape[0],))
         self.l = np.zeros((self.opt.l.shape[0],))
-        context = self.model.plant.CreateDefaultContext()
+        context = self.model.multibody.CreateDefaultContext()
         Jn, Jt = self.model.GetContactJacobians(context)
         self.numN = Jn.shape[0]
         self.numT = Jt.shape[0]
@@ -61,3 +61,53 @@ class ContactImplicitTest(unittest.TestCase):
         z = np.concatenate([self.x, self.l], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__friction_cone_constraint(z)
         self.assertEqual(r.shape[0], 3*self.numN, msg="Friction cone constraint returns the wrong number of constraints") 
+
+    def test_equal_timestep_constraint(self):
+        """Check that the add_equal_time_constraints method executes"""
+        pre_cstr = len(self.opt.prog.GetAllConstraints())
+        self.opt.add_equal_time_constraints()
+        post_cstr2 = len(self.opt.prog.GetAllConstraints())
+        self.assertNotEqual(pre_cstr, post_cstr2, msg="Equal time constraints not added")
+
+    def test_add_running_cost(self):
+        """Check that add_running_cost executes without error"""
+        Q = 10*np.ones((1,1))
+        b = np.zeros((1,1))
+        cost = lambda u: (u - b).dot(Q).dot(u-b)
+        pre_costs = len(self.opt.prog.GetAllCosts())
+        self.opt.add_running_cost(cost, vars=[self.opt.u])
+        post_costs = len(self.opt.prog.GetAllCosts())
+        self.assertNotEqual(pre_costs, post_costs, msg="Running cost not added")
+
+    def test_add_quadratic_cost(self):
+        """Check that add_quadratic_running_cost executes without error"""
+        Q = 10*np.ones((1,1))
+        b = np.zeros((1,))
+        pre_costs = len(self.opt.prog.GetAllCosts())
+        self.opt.add_quadratic_running_cost(Q, b, [self.opt.u])
+        post_costs = len(self.opt.prog.GetAllCosts())
+        self.assertNotEqual(pre_costs, post_costs, msg="Did not add quadratic cost")
+        
+    def test_add_final_cost(self):
+        """Check that add_final_cost executes without error"""
+        cost = lambda h: np.sum(h)
+        pre_costs = len(self.opt.prog.GetAllCosts())
+        self.opt.add_final_cost(cost, vars=[self.opt.h])
+        post_costs = len(self.opt.prog.GetAllCosts())
+        self.assertNotEqual(pre_costs, post_costs, msg="Final Cost not added")
+
+    def test_add_state_constraint(self):
+        """Check that add_state_constraint executes without error"""
+        q0 = [1,2,3]
+        index = [0,1,2]
+        pre_cstr = len(self.opt.prog.GetAllConstraints())
+        self.opt.add_state_constraint(knotpoint=0, value=q0, subset_index=index)
+        post_cstr = len(self.opt.prog.GetAllConstraints())
+        self.assertNotEqual(pre_cstr, post_cstr, msg="State constraint not added")
+
+    def test_set_initial_guess(self):
+        """Check that set_initial_guess executes without error"""
+        guess = np.zeros((self.opt.x.shape))
+        self.opt.set_initial_guess(xtraj=guess)
+        set_guess = self.opt.prog.GetInitialGuess(self.opt.x)
+        self.assertTrue(np.array_equal(guess, set_guess), msg="Initial guess not set")

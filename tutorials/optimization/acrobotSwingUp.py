@@ -12,9 +12,9 @@ import numpy as np
 import timeit
 # Import utilities from pydrake
 from pydrake.common import FindResourceOrThrow
-from pydrake.all import (MultibodyPlant, PiecewisePolynomial, DirectCollocation, Solve, MathematicalProgram, SolverOptions, DiagramBuilder, SceneGraph, PlanarSceneGraphVisualizer, Simulator, TrajectorySource)
+from pydrake.all import (MultibodyPlant, PiecewisePolynomial, DirectCollocation, DiagramBuilder, SceneGraph, PlanarSceneGraphVisualizer, Simulator, TrajectorySource)
 from pydrake.multibody.parsing import Parser
-from pydrake.solvers.snopt import SnoptSolver, SnoptSolverDetails 
+from pydrake.solvers.snopt import SnoptSolver
 
 # Find and load the Acrobot URDF 
 acro_file = FindResourceOrThrow("drake/examples/acrobot/Acrobot.urdf")

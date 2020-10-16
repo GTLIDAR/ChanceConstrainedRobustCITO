@@ -27,7 +27,7 @@ class TimeSteppingMultibodyPlant():
         Initialize TimeSteppingMultibodyPlant with a model from a file and an arbitrary terrain geometry. Initialization also welds the first frame in the MultibodyPlant to the world frame
         """
         self.builder = DiagramBuilder()
-        self.plant, self.scene_graph = AddMultibodyPlantSceneGraph(self.builder, 0.001)
+        self.multibody, self.scene_graph = AddMultibodyPlantSceneGraph(self.builder, 0.001)
         # Store the terrain
         self.terrain = terrain
         self._dlevel=0
@@ -35,11 +35,11 @@ class TimeSteppingMultibodyPlant():
         self.model_index = []
         if file is not None:
             # Parse the file
-            self.model_index = Parser(self.plant).AddModelFromFile(FindResource(file))
+            self.model_index = Parser(self.multibody).AddModelFromFile(FindResource(file))
             # Weld the first frame to the world-frame
-            body_inds = self.plant.GetBodyIndices(self.model_index)
-            base_frame = self.plant.get_body(body_inds[0]).body_frame()
-            self.plant.WeldFrames(self.plant.world_frame(), base_frame, RigidTransform())
+            body_inds = self.multibody.GetBodyIndices(self.model_index)
+            base_frame = self.multibody.get_body(body_inds[0]).body_frame()
+            self.multibody.WeldFrames(self.multibody.world_frame(), base_frame, RigidTransform())
         # Initialize the collision data
         self.collision_frames = []
         self.collision_poses = []
@@ -49,7 +49,7 @@ class TimeSteppingMultibodyPlant():
         Cements the topology of the MultibodyPlant and identifies all available collision geometries. 
         """
         # Finalize the underlying plant model
-        self.plant.Finalize()
+        self.multibody.Finalize()
         # Idenify and store collision geometries
         self.__store_collision_geometries()
 
@@ -62,15 +62,15 @@ class TimeSteppingMultibodyPlant():
         Return values:
             distances: a numpy array of signed distance values
         """
-        qtype = self.plant.GetPositions(context).dtype
+        qtype = self.multibody.GetPositions(context).dtype
         nCollisions = len(self.collision_frames)
         distances = np.zeros((nCollisions,), dtype=qtype)
         for n in range(0, nCollisions):
             # Transform collision frames to world coordinates
-            collision_pt = self.plant.CalcPointsPositions(context, 
+            collision_pt = self.multibody.CalcPointsPositions(context, 
                                         self.collision_frames[n],
                                         self.collision_poses[n].translation(),
-                                        self.plant.world_frame()) 
+                                        self.multibody.world_frame()) 
             # Calc nearest point on terrain in world coordinates
             terrain_pt = self.terrain.nearest_point(collision_pt)
             # Calc normal distance to terrain   
@@ -89,16 +89,16 @@ class TimeSteppingMultibodyPlant():
         Return Values
             (Jn, Jt): the tuple of contact Jacobians. Jn represents the normal components and Jt the tangential components
         """
-        qtype = self.plant.GetPositions(context).dtype
+        qtype = self.multibody.GetPositions(context).dtype
         nCollision = len(self.collision_frames)
-        Jn = np.zeros((nCollision, self.plant.num_positions()),dtype=qtype)
-        Jt = np.zeros((nCollision * 4 * (self._dlevel+1), self.plant.num_positions()),dtype=qtype)
+        Jn = np.zeros((nCollision, self.multibody.num_positions()),dtype=qtype)
+        Jt = np.zeros((nCollision * 4 * (self._dlevel+1), self.multibody.num_positions()),dtype=qtype)
         for n in range(0, nCollision):
             # Transform collision frames to world coordinates
-            collision_pt = self.plant.CalcPointsPositions(context,
+            collision_pt = self.multibody.CalcPointsPositions(context,
                                         self.collision_frames[n],
                                         self.collision_poses[n].translation(),
-                                        self.plant.world_frame())
+                                        self.multibody.world_frame())
             # Calc nearest point on terrain in world coordinates
             terrain_pt = self.terrain.nearest_point(collision_pt)
             # Calc normal distance to terrain   
@@ -107,12 +107,12 @@ class TimeSteppingMultibodyPlant():
             # Discretize to the chosen level 
             tangent = self.__discretize_friction(normal, tangent)  
             # Get the contact point Jacobian
-            J = self.plant.CalcJacobianTranslationalVelocity(context,
+            J = self.multibody.CalcJacobianTranslationalVelocity(context,
                  JacobianWrtVariable.kQDot,
                  self.collision_frames[n],
                  self.collision_poses[n].translation(),
-                 self.plant.world_frame(),
-                 self.plant.world_frame())
+                 self.multibody.world_frame(),
+                 self.multibody.world_frame())
             # Calc contact Jacobians
             Jn[n,:] = normal.dot(J)
             Jt[n*4*(self._dlevel+1) : (n+1)*4*(self._dlevel+1), :] = tangent.dot(J)
@@ -131,7 +131,7 @@ class TimeSteppingMultibodyPlant():
         friction_coeff = []
         for frame, pose in zip(self.collision_frames, self.collision_poses):
             # Transform collision frames to world coordinates
-            collision_pt = self.plant.CalcPointsPositions(context, frame, pose.translation(), self.plant.world_frame())
+            collision_pt = self.multibody.CalcPointsPositions(context, frame, pose.translation(), self.multibody.world_frame())
             # Calc nearest point on terrain in world coordiantes
             terrain_pt = self.terrain.nearest_point(collision_pt)
             friction_coeff.append(self.terrain.get_friction(terrain_pt))
@@ -144,7 +144,7 @@ class TimeSteppingMultibodyPlant():
         # Create a new TimeSteppingMultibodyPlant model
         copy_ad = TimeSteppingMultibodyPlant(file=None, terrain=self.terrain, dlevel=self._dlevel)
         # Instantiate the plant as the Autodiff version
-        copy_ad.plant = self.plant.ToAutoDiffXd()
+        copy_ad.multibody = self.multibody.ToAutoDiffXd()
         copy_ad.scene_graph = self.scene_graph.ToAutoDiffXd()
         copy_ad.model_index = self.model_index
         # Store the collision frames to finalize the model
@@ -160,15 +160,15 @@ class TimeSteppingMultibodyPlant():
         # Create a diagram and a scene graph
         inspector = self.scene_graph.model_inspector()
         # Locate collision geometries and contact points
-        body_inds = self.plant.GetBodyIndices(self.model_index)
+        body_inds = self.multibody.GetBodyIndices(self.model_index)
         # Get the collision frames for each body in the model
         for body_ind in body_inds:
-            body = self.plant.get_body(body_ind)
-            collision_ids = self.plant.GetCollisionGeometriesForBody(body)
+            body = self.multibody.get_body(body_ind)
+            collision_ids = self.multibody.GetCollisionGeometriesForBody(body)
             for id in collision_ids:
                 # get and store the collision geometry frames
                 frame_name = inspector.GetName(inspector.GetFrameId(id)).split("::")
-                self.collision_frames.append(self.plant.GetFrameByName(frame_name[-1]))
+                self.collision_frames.append(self.multibody.GetFrameByName(frame_name[-1]))
                 self.collision_poses.append(inspector.GetPoseInFrame(id))
 
     def __discretize_friction(self, normal, tangent):
