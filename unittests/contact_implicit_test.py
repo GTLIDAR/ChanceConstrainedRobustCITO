@@ -98,7 +98,7 @@ class ContactImplicitTest(unittest.TestCase):
 
     def test_add_state_constraint(self):
         """Check that add_state_constraint executes without error"""
-        q0 = [1,2,3]
+        q0 = np.array([1,2,3])
         index = [0,1,2]
         pre_cstr = len(self.opt.prog.GetAllConstraints())
         self.opt.add_state_constraint(knotpoint=0, value=q0, subset_index=index)

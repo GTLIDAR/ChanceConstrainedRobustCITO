@@ -24,7 +24,6 @@ class ContactImplicitDirectTranscription():
                 minimum_timestep: (float) the minimum timestep between knot points
                 maximum_timestep: (float) the maximum timestep between knot points
         """
-        #TODO: Implement autodiff and float plants
         # Store parameters
         self.plant_f = plant
         self.context_f = context
@@ -287,7 +286,7 @@ class ContactImplicitDirectTranscription():
 
     def add_running_cost(self, cost_func, vars=None, name="RunningCost"):
         """Add a running cost to the program"""
-        integrated_cost = lambda x: x[0] * cost_func(x[1:])
+        integrated_cost = lambda x: np.squeeze(x[0] * cost_func(x[1:]))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])
@@ -302,8 +301,16 @@ class ContactImplicitDirectTranscription():
             self.prog.AddCost(cost_func,description=name)
             
     def add_quadratic_running_cost(self, Q, b, vars=None, name="QuadraticCost"):
-        """Add a quadratic running cost to the program """
-        integrated_cost = lambda z: z[0]*(z[1:]-b).dot(Q).dot(z[1:]-b)
+        """
+        Add a quadratic running cost to the program
+        
+        Arguments:
+            Q (numpy.array[n,n]): a square numpy array of cost weights
+            b (numpy.array[n,1]): a vector of offset values
+            vars (list): a list of program decision variables subject to the cost
+            name (str, optional): a description of the cost function
+        """
+        integrated_cost = lambda z: np.squeeze(z[0]*(z[1:]-b).dot(Q.dot(z[1:]-b)))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])
@@ -318,15 +325,30 @@ class ContactImplicitDirectTranscription():
         self.prog.AddLinearEqualityConstraint(Aeq=M, beq=b, vars=self.h).evaluator().set_description('EqualTimeConstraints')
         
     def add_state_constraint(self, knotpoint, value, subset_index=None):
-        """add a constraint to the state vector at a particular knotpoint"""
+        """
+        add a constraint to the state vector at a particular knotpoint
+        
+        Arguments:  
+            knotpoint (int): the index of the knotpoint at which to add the constraint
+            value (numpy.array): an array of constraint values
+            subset_index: optional list of indices specifying which state variables are subject to constraint
+        """
         #TODO Check the inputs
-        if subset_index is not None:
-            self.prog.AddBoundingBoxConstraint(value, value, self.x[knotpoint, subset_index])
-        else:
-            self.prog.AddBoundingBoxConstraint(value, value, self.x[knotpoint,:])
+        A = np.eye(value.shape[0])
+        if subset_index is None:
+            subset_index = range(0, self.x.shape[0])       
+        self.prog.AddLinearEqualityConstraint(Aeq=A, beq=value, vars=self.x[subset_index, knotpoint]).evaluator().set_description("StateConstraint")
             
     def add_control_limits(self, umin, umax):
-        """adds acutation limit constraints to all knot pints"""
+        """
+        adds acutation limit constraints to all knot pints
+        
+        Arguments:
+            umin (numpy.array): array of minimum control effort limits
+            umax (numpy.array): array of maximum control effort limits
+
+        umin and umax must as many entries as there are actuators in the problem. If the control has no effort limit, use np.inf
+        """
         #TODO check the inputs
         u_valid = np.isfinite(umin)
         for n in range(0, self.num_time_samples):
