@@ -9,6 +9,6 @@
         "ms-python.python"
     ],
     "containerEnv":{
-        "DISPLAY": "172.22.144.1:0.0"
+        "DISPLAY": "172.19.176.1:0.0"
     }
 }

@@ -7,6 +7,7 @@ Luke Drnach
 October 14, 2020
 """
 import numpy as np 
+from utilities import CheckProgram
 from pydrake.common import FindResourceOrThrow
 from pydrake.math import RigidTransform 
 from pydrake.multibody.parsing import Parser
@@ -74,8 +75,9 @@ q = prog.NewContinuousVariables(plant_f.num_positions())
 # define nominal configuration
 q0 = np.zeros(plant_f.num_positions())
 # Add the custom cost
-prog.AddCost(link_7_distance_to_target, vars=q)
+prog.AddCost(link_7_distance_to_target, vars=q, description="IK_Cost")
 # Solve the problem
+CheckProgram(prog)
 print('Start optimization')
 result = Solve(prog, initial_guess=q0)
 # Number of autodiff and float calls during optimization

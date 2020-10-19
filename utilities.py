@@ -1,6 +1,6 @@
 from os import path 
 from sys import exit
-from numpy import isscalar
+from pydrake.autodiffutils import AutoDiffXd
 
 def FindResource(filename):
     if not path.isfile(filename):
@@ -18,19 +18,36 @@ def CheckProgram(prog):
     status = True
     # Check that the outputs of the costs are all scalars
     for cost in prog.generic_costs():
-        # Evaluate the cost
-        xs = [1]*len(cost.variables())
-        out = cost.evaluator().Eval(xs)
-        if not isscalar(out):
-            print(f"{cost.evaluator().get_description()} returns a vector instead of a scalar")
+        # Evaluate the cost with floats
+        try:
+            xs = [1.]*len(cost.variables())
+            cost.evaluator().Eval(xs)
+        except RuntimeError:
             status = False
+            print(f"Evaluating {cost.evaluator().get_description()} with floats produces a RuntimeError")
+        # Evaluate with AutoDiff arrays
+        try:
+            xd = [AutoDiffXd(1.)] * len(cost.variables())
+            cost.evaluator().Eval(xd)
+        except RuntimeError:
+            status = False
+            print(f"Evaluating {cost.evaluator().get_description()} with AutoDiffs produces a RuntimeError")
+
     # Check that the outputs of all constraints are vectors
     for cstr in prog.generic_constraints():
-        # Evaluate the constraint
-        xs = [1]*len(cstr.variables())
-        out = cstr.evaluator().Eval(xs)
-        if isscalar(out):
-            print(f"{cstr.evaluator().get_description()} returns a scalar instead of a vector")
+        # Evaluate the constraint with floats
+        try:
+            xs = [1.]*len(cstr.variables())
+            cstr.evaluator().Eval(xs)
+        except RuntimeError:
             status = False
+            print(f"Evaluating {cstr.evaluator().get_description()} with floats produces a RuntimeError")
+        # Evaluate constraint with AutoDiffXd
+        try:
+            xd = [AutoDiffXd(1.)] * len(cstr.variables())
+            cstr.evaluator().Eval(xd)
+        except RuntimeError:
+            status = False
+            print(f"Evaluating {cstr.evaluator().get_description()} with AutoDiffs produces a RuntimeError")
     # Return the status flag
     return status

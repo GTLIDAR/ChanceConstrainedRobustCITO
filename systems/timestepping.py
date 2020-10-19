@@ -71,6 +71,8 @@ class TimeSteppingMultibodyPlant():
                                         self.collision_frames[n],
                                         self.collision_poses[n].translation(),
                                         self.multibody.world_frame()) 
+            # Squeeze collision point (necessary for AutoDiff plants)
+            collision_pt = np.squeeze(collision_pt)
             # Calc nearest point on terrain in world coordinates
             terrain_pt = self.terrain.nearest_point(collision_pt)
             # Calc normal distance to terrain   

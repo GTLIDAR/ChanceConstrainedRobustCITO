@@ -9,6 +9,7 @@ import numpy as np
 import unittest
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from systems.timestepping import TimeSteppingMultibodyPlant
+from pydrake.autodiffutils import AutoDiffXd
 
 class ContactImplicitTest(unittest.TestCase):
     @classmethod

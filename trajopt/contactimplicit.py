@@ -7,7 +7,9 @@ Luke Drnach
 October 5, 2020
 """
 import numpy as np 
-from pydrake.all import MathematicalProgram, MultibodyForces
+from pydrake.all import MathematicalProgram
+from pydrake.autodiffutils import AutoDiffXd
+from pydrake.multibody.tree import MultibodyForces_
 
 class ContactImplicitDirectTranscription():
     """
@@ -34,6 +36,11 @@ class ContactImplicitDirectTranscription():
         self.plant_f.multibody.SetDefaultContext(context)
         self.plant_ad = self.plant_f.toAutoDiffXd()       
         self.context_ad = self.plant_ad.multibody.CreateDefaultContext()
+        # Create MultibodyForces
+        MBF = MultibodyForces_[float]
+        self.mbf_f = MBF(self.plant_f.multibody)
+        MBF_AD = MultibodyForces_[AutoDiffXd]
+        self.mbf_ad = MBF_AD(self.plant_ad.multibody)
         # Create the mathematical program
         self.prog = MathematicalProgram()
         # Add decision variables to the program
@@ -102,7 +109,7 @@ class ContactImplicitDirectTranscription():
                 self.prog.AddConstraint(self.__backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0],1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
-                            vars=np.concatenate((self.h[n], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1], self.jl[:,n+1]), axis=0),
+                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1], self.jl[:,n+1]), axis=0),
                             description="dynamics")
                 # Add joint limit constraints
                 self.prog.AddConstraint(self.__joint_limit_constraint,
@@ -115,7 +122,7 @@ class ContactImplicitDirectTranscription():
                 self.prog.AddConstraint(self.__backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0],1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
-                            vars=np.concatenate((self.h[n], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
+                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
                             description="dynamics")
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self.__normal_distance_constraint, 
@@ -143,8 +150,7 @@ class ContactImplicitDirectTranscription():
             z = [h, x1, x2, u, l, jl]
         Returns the dynamics defect, evaluated using Backward Euler Integration. 
         """
-        plant, context = self.__autodiff_or_float(z)
-        #TODO: Add in Multibody Forces (reactions, joint limits) to the Inverse Dynamics
+        plant, context, mbf = self.__autodiff_or_float(z)
         # Split the variables from the decision variables
         ind = np.cumsum([self.h.shape[1], self.x.shape[0], self.x.shape[0], self.u.shape[0]])
         h, x1, x2, u, l = np.split(z, ind)
@@ -155,10 +161,10 @@ class ContactImplicitDirectTranscription():
         dv = (v2 - v1)/h
         # Update the context
         plant.multibody.SetPositionsAndVelocities(context, x2)
-        # Calculate multibody forces
+        # Set multibodyforces to zero
+        # TODO: Move joint limits and reaction forces to MBF
+        mbf.SetZero()
         # Do inverse dynamics
-        mbf = MultibodyForces(plant.multibody)
-        mbf.SetZero()       #For now, set multibody forces to zero
         tau = plant.multibody.CalcInverseDynamics(context, dv, mbf)
         # Calc the residual
         B = plant.multibody.MakeActuationMatrix()
@@ -191,7 +197,7 @@ class ContactImplicitDirectTranscription():
                 z = [state, normal_forces]
         """
         # Check if the decision variables are floats
-        plant, context = self.__autodiff_or_float(z)
+        plant, context, _ = self.__autodiff_or_float(z)
         # Split the variables from the decision list
         x, fN = np.split(z, [self.x.shape[0]])
         # Calculate the normal distance
@@ -208,7 +214,7 @@ class ContactImplicitDirectTranscription():
             The decision variable list:
                 z = [state, friction_forces, velocity_slacks]
         """
-        plant, context = self.__autodiff_or_float(z)
+        plant, context, _ = self.__autodiff_or_float(z)
         # Split variables from the decision list
         x, fT, gam = np.split(z, np.cumsum([self.x.shape[0], self.numT]))
         # Get the velocity, and convert to qdot
@@ -230,7 +236,7 @@ class ContactImplicitDirectTranscription():
             The decision variable list is stored as :
                 z = [state,normal_forces, friction_forces, velocity_slacks]
         """
-        plant, context = self.__autodiff_or_float(z)
+        plant, context, _ = self.__autodiff_or_float(z)
         ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
         x, fN, fT, gam = np.split(z, ind)
         plant.multibody.SetPositionsAndVelocities(context, x)
@@ -265,9 +271,9 @@ class ContactImplicitDirectTranscription():
     def __autodiff_or_float(self, z):
         """Returns the autodiff or float implementation of model and context based on the dtype of the decision variables"""
         if z.dtype == "float":
-            return (self.plant_f, self.context_f)
+            return (self.plant_f, self.context_f, self.mbf_f)
         else:
-            return (self.plant_ad, self.context_ad)
+            return (self.plant_ad, self.context_ad, self.mbf_ad)
 
     def __set_initial_timesteps(self):
         """Set the initial timesteps to their maximum values"""
@@ -286,7 +292,7 @@ class ContactImplicitDirectTranscription():
 
     def add_running_cost(self, cost_func, vars=None, name="RunningCost"):
         """Add a running cost to the program"""
-        integrated_cost = lambda x: np.squeeze(x[0] * cost_func(x[1:]))
+        integrated_cost = lambda x: np.array(x[0] * cost_func(x[1:]))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])
@@ -310,7 +316,7 @@ class ContactImplicitDirectTranscription():
             vars (list): a list of program decision variables subject to the cost
             name (str, optional): a description of the cost function
         """
-        integrated_cost = lambda z: np.squeeze(z[0]*(z[1:]-b).dot(Q.dot(z[1:]-b)))
+        integrated_cost = lambda z: np.array(z[0]*(z[1:]-b).dot(Q.dot(z[1:]-b)))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])
@@ -372,20 +378,23 @@ class ContactImplicitDirectTranscription():
 
     def reconstruct_state_trajectory(self, soln):
         """Returns the state trajectory from the solution"""
-        pass
+        return soln.GetSolution(self.x)
 
     def reconstruct_input_trajectory(self, soln):
         """Returns the input trajectory from the solution"""
-        pass
+        return soln.GetSolution(self.u)
     
     def reconstruct_reaction_force_trajectory(self, soln):
         """Returns the reaction force trajectory from the solution"""
-        pass
+        return soln.GetSolution(self.l)
     
     def reconstruct_limit_force_trajectory(self, soln):
         """Returns the joint limit force trajectory from the solution"""
-        pass
-    
+        if self.jl:
+            return soln.GetSolution(self.jl)
+        else:
+            return None
+
     def reconstruct_all_trajectories(self, soln):
         """Returns state, input, reaction force, and joint limit force trajectories from the solution"""
         state = self.reconstruct_state_trajectory(soln)
@@ -393,3 +402,7 @@ class ContactImplicitDirectTranscription():
         lforce = self.reconstruct_reaction_force_trajectory(soln)
         jlforce = self.reconstruct_limit_force_trajectory(soln)
         return (state, input, lforce, jlforce)
+
+    def get_solution_times(self, soln):
+        """Returns a vector of times for the knotpoints in the solution"""
+        return np.cumsum(soln.GetSolution(self.h))

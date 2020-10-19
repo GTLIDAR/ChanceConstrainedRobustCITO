@@ -14,6 +14,8 @@ from math import pi
 from pydrake.common import FindResourceOrThrow
 from pydrake.all import MultibodyPlant
 from pydrake.multibody.parsing import Parser
+from pydrake.autodiffutils import AutoDiffXd
+from pydrake.multibody.tree import MultibodyForces_
 #%% [markdown]
 #   # Loading a the acrobot model from a URDF
 #   
