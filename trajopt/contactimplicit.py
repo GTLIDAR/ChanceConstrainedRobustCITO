@@ -405,4 +405,6 @@ class ContactImplicitDirectTranscription():
 
     def get_solution_times(self, soln):
         """Returns a vector of times for the knotpoints in the solution"""
-        return np.cumsum(soln.GetSolution(self.h))
+        h = soln.GetSolution(self.h)
+        t = np.concatenate((np.zeros(1,), h), axis=0)
+        return np.cumsum(t)

@@ -6,7 +6,8 @@
     },
     "forwardPorts": [3000],
     "extensions": [
-        "ms-python.python"
+        "ms-python.python",
+        "ms-python.vscode-pylance"
     ],
     "containerEnv":{
         "DISPLAY": "172.19.176.1:0.0"

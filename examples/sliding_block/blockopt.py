@@ -13,7 +13,6 @@ from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver, SnoptSolverDetails
 from utilities import CheckProgram
 
-
 # Create the block model with the default flat terrain
 plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
 plant.Finalize()
@@ -55,7 +54,6 @@ prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e
 prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
 # Check the problem for bugs in the constraints
-#TODO: Re-write cost adders to force the output to a scalar type
 if not CheckProgram(prog):
     quit()
 # Solve the problem
@@ -76,7 +74,6 @@ x = trajopt.reconstruct_state_trajectory(result)
 u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
-
 # Plot the horizontal trajectory
 plt.figure(1)
 plt.title('Horizontal Trajectory')
@@ -87,7 +84,7 @@ plt.subplot(3,1,2)
 plt.plot(t,x[3,:], linewidth=1.5)
 plt.ylabel('Velocity')
 plt.subplot(3,1,3)
-plt.plot(t, u, linewidth=1.5)
+plt.plot(t, u[0,:], linewidth=1.5)
 plt.ylabel('Control (N)')
 plt.xlabel('Time (s)')
 # Plot the vertical trajectory, as a check
@@ -110,7 +107,7 @@ for n in range(0,4):
     plt.plot(t, l[n,:], linewidth=1.5)
     plt.ylabel('Normal')
     plt.subplot(3,1,2)
-    plt.plot(t, l[4(n+1),:] - l[4*(n+1)+2,:], linewidth=1.5)
+    plt.plot(t, l[4*(n+1),:] - l[4*(n+1)+2,:], linewidth=1.5)
     plt.ylabel('Friction-x')
     plt.subplot(3,1,3)
     plt.plot(t, l[4*(n+1)+1, :] - l[4*(n+1)+3,:], linewidth=1.5)
