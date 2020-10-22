@@ -45,8 +45,10 @@ class ContactImplicitDirectTranscription():
         self.prog = MathematicalProgram()
         # Add decision variables to the program
         self.__add_decision_varibles()
-        # Add dynamic constraints (+ contact constraints)
+        # Add dynamic constraints 
         self.__add_dynamic_constraints()
+        # Add contact constraints
+        self.__add_contact_constraints()
         # Initialize the timesteps
         self.__set_initial_timesteps()
 
@@ -143,6 +145,9 @@ class ContactImplicitDirectTranscription():
                         vars=np.concatenate((self.x[:,n+1], self.l[:,n+1]), axis=0),
                         description="friction_cone")
             
+    def __add_contact_constraints(self):
+        pass
+
     def __backward_dynamics(self, z):  
         """
         backward_dynamics: Backward Euler integration of the dynamics constraints
@@ -162,28 +167,25 @@ class ContactImplicitDirectTranscription():
         # Update the context
         plant.multibody.SetPositionsAndVelocities(context, x2)
         # Set multibodyforces to zero
-        # TODO: Move joint limits and reaction forces to MBF
+        # TODO: Move joint limits, reaction forces, and gravity to MBF
         mbf.SetZero()
+        G = plant.multibody.CalcGravityGeneralizedForces(context)
         # Do inverse dynamics
         tau = plant.multibody.CalcInverseDynamics(context, dv, mbf)
         # Calc the residual
         B = plant.multibody.MakeActuationMatrix()
-        # Expand the actuation matrix in the case of 1 actuator, to avoid errors with np.dot
-        if plant.multibody.num_actuators() == 1:
-            B = np.expand_dims(B, axis=1)
         # Calculate the residual force
-        tau = np.expand_dims(tau, axis=1)
-        fv = np.squeeze(tau - B.dot(u))
+        fv = tau - B.dot(u) - G
         # Add in reaction and joint limit forces
         if self.jl:
             l, jl = np.split(l, [self.l.shape[0]])
-            fv = fv - self._Jl.dot(jl)/h
+            fv = fv - self._Jl.dot(jl)
         Jn, Jt = plant.GetContactJacobians(context)
         J = np.concatenate((Jn, Jt), axis=0)
-        fv = fv - J.transpose().dot(l[0:self.numN + self.numT])/h
+        fv = fv - J.transpose().dot(l[0:self.numN + self.numT])
         # Calc position residual from velocity
         dq2 = plant.multibody.MapVelocityToQDot(context, v2)
-        fq = q2 - q1 - h*dq2
+        fq = q1 - q2 + h*dq2
         # Return dynamics defects
         return np.concatenate((fq, fv), axis=0)
     
