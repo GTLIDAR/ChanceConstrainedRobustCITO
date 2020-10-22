@@ -100,15 +100,13 @@ plt.show()
 #   1. Add systems to the Diagram
 #   2. Connect the systems in the Diagram
 
-builder = DiagramBuilder()
-# AddSystem is the generic method to add components to the Diagram.
-# TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
-source = builder.AddSystem(TrajectorySource(x_traj))
-scene_graph = builder.AddSystem(SceneGraph())
+# builder = DiagramBuilder()
+# # AddSystem is the generic method to add components to the Diagram.
+# # TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
+# source = builder.AddSystem(TrajectorySource(x_traj))
+# scene_graph = builder.AddSystem(SceneGraph())
 
-visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
-builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
-
-
+# visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
+# builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
 
 print('success')

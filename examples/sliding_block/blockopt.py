@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver, SnoptSolverDetails
-from utilities import CheckProgram
+import utilities as utils
 
 # Create the block model with the default flat terrain
 plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
@@ -34,7 +34,9 @@ trajopt.add_equal_time_constraints()
 # Add a running cost on the controls
 Q = 10 * np.ones((1,1))
 b = np.zeros((1,))
-# trajopt.add_quadratic_running_cost(Q, b, [trajopt.u], name="ControlCost")
+trajopt.add_quadratic_running_cost(Q, b, [trajopt.u], name="ControlCost")
+R = np.diag([1,1,1,0,0,0])
+trajopt.add_quadratic_running_cost(R, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
 cost = lambda h: np.sum(h)
 trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
@@ -48,13 +50,13 @@ trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
 # Set the SNOPT solver options
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Iterations Limit", 1000)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Iterations Limit", 5000)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-4)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-4)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
 solver = SnoptSolver()
 # Check the problem for bugs in the constraints
-if not CheckProgram(prog):
+if not utils.CheckProgram(prog):
     quit()
 # Solve the problem
 print("Solving trajectory optimization")
@@ -67,7 +69,7 @@ print(f"Optimization successful? {result.is_success()}")
 print(f"Solved with {result.get_solver_id().name()}")
 print(f"Optimal cost = {result.get_optimal_cost()}")
 # Get the exit code from SNOPT
-print(f"SNOPT Exit Status: {result.get_solver_details().info}")
+print(f"SNOPT Exit Status {result.get_solver_details().info}: {utils.SNOPT_DECODER[result.get_solver_details().info]}")
 
 # Unpack and plot the trajectories
 x = trajopt.reconstruct_state_trajectory(result)

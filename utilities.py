@@ -2,6 +2,41 @@ from os import path
 from sys import exit
 from pydrake.autodiffutils import AutoDiffXd
 
+SNOPT_DECODER = {
+    0: "finished successfully",
+    1: "optimality conditions satisfied",
+    11: "infeasible linear constraints",
+    12: "infeasible linear equalities",
+    13: "nonlinear infeasibilities minimized",
+    14: "infeasibilities minimized",
+    21: "unbounded objective",
+    22: "constraint violation limit reached",
+    31: "iteration limit reached",
+    32: "major iteration limit reached",
+    33: "the superbasics limit is too small",
+    41: "current point cannot be improved",
+    42: "singular basis",
+    43: "cannot satisfy the general constraints",
+    44: "ill-conditioned null-space basis",
+    51: "incoorrect objective derivatives",
+    52: "incorrect constraint derivatives",
+    61: "undefined function at the first feasible point",
+    62: "undefined function at the initial point",
+    63: "unable to proceed in undefined region",
+    71: "terminated during function evaluation",
+    72: "terminated during constraint evaluation",
+    73: "terminated during objective evaluation",
+    74: "termianted from monitor routine",
+    81: "work arrays must have at least 500 elements",
+    82: "not enough character storage",
+    83: "not enough integer storage",
+    84: "not enough real storage",
+    91: "invalid input argument",
+    92: "basis file dimensions do not match this problem",
+    141: "wrong number of basic variables",
+    142: "error in basis package"
+}
+
 def FindResource(filename):
     if not path.isfile(filename):
         exit(f"{filename} not found")

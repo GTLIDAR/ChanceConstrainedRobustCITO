@@ -94,14 +94,10 @@ class ContactImplicitDirectTranscription():
             self.jl = False
         
     def __add_dynamic_constraints(self):
-        """Add constraints to enforce rigid body dynamics, contact complementarity, and joint limits"""
+        """Add constraints to enforce rigid body dynamics and joint limits"""
         # At each knot point, add
-        #   Limits on the timesteps - DONE
-        #   The dynamic consensus constraints - DONE
-        #   The contact complementarity constraints
-        #   The joint limit constraints (if applicable)
-        #   The control effort constraints (if applicable) 
-        # At every knot point
+        #   Bounding box constraints on the timesteps
+        #   Equality constraints enforcing the dynamics
         for n in range(0, self.num_time_samples-2):
             # Add in timestep bounding box constraint
             self.prog.AddBoundingBoxConstraint(self.minimum_timestep, self.maximum_timestep, self.h[n,:])
@@ -124,29 +120,31 @@ class ContactImplicitDirectTranscription():
                 self.prog.AddConstraint(self.__backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0],1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
-                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
-                            description="dynamics")
+                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n+1], self.l[:,n+1]), axis=0),
+                            description="dynamics")        
+            
+    def __add_contact_constraints(self):
+        """ Add complementarity constraints for contact to the optimization problem"""
+        # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
+        for n in range(0, self.num_time_samples-1):
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self.__normal_distance_constraint, 
                         lb=np.zeros(shape=(3*self.numN,)),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        vars=np.concatenate((self.x[:,n+1], self.l[0:self.numN,n+1]), axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
             # Sliding velocity constraint 
             self.prog.AddConstraint(self.__sliding_velocity_constraint,
                         lb=np.zeros((3*self.numT,)),
                         ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
-                        vars=np.concatenate((self.x[:,n+1], self.l[self.numN:,n+1]), axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
                         description="sliding_velocity")
             # Friction cone constraint
             self.prog.AddConstraint(self.__friction_cone_constraint, 
                         lb=np.zeros(shape=(3*self.numN,)),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        vars=np.concatenate((self.x[:,n+1], self.l[:,n+1]), axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
-            
-    def __add_contact_constraints(self):
-        pass
 
     def __backward_dynamics(self, z):  
         """
@@ -318,7 +316,7 @@ class ContactImplicitDirectTranscription():
             vars (list): a list of program decision variables subject to the cost
             name (str, optional): a description of the cost function
         """
-        integrated_cost = lambda z: np.array(z[0]*(z[1:]-b).dot(Q.dot(z[1:]-b)))
+        integrated_cost = lambda z: z[0]*(z[1:]-b).dot(Q.dot(z[1:]-b))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])
