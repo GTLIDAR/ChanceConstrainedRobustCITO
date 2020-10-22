@@ -43,25 +43,25 @@ class ContactImplicitTest(unittest.TestCase):
         """Check that the dynamic constraint can be evaluated"""
         z = np.concatenate([self.h, self.x, self.x, self.u, self.l], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__backward_dynamics(z)
-        self.assertEqual(r.shape[0], self.x.shape[0], msg="backwards_dynamics returns a vector with the wrong size")
+        self.assertEqual(r.shape, self.x.shape, msg="backwards_dynamics returns a vector with the wrong size")
         
     def test_eval_normaldist_constraint(self):
         """Check that the normal distance constraint can be evaluated"""
         z = np.concatenate([self.x, self.l[0:self.numN]], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__normal_distance_constraint(z)
-        self.assertEqual(r.shape[0], 3*self.numN, msg="normal distance constraint returns the wrong number of constraints")
+        self.assertEqual(r.shape, (3*self.numN,), msg="normal distance constraint returns the wrong number of constraints")
 
     def test_eval_slidingvel_constraint(self):
         """Check that the sliding velocity constraint can be evaluated"""
         z = np.concatenate([self.x,self.l[self.numN:]], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__sliding_velocity_constraint(z)
-        self.assertEqual(r.shape[0], 3*self.numT, msg="Sliding velocity constraint returns the wrong number of constraints")
+        self.assertEqual(r.shape, (3*self.numT,), msg="Sliding velocity constraint returns the wrong number of constraints")
 
     def test_eval_friccone_constraint(self):
         """Check that the friction cone constraint can be evaluated"""
         z = np.concatenate([self.x, self.l], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__friction_cone_constraint(z)
-        self.assertEqual(r.shape[0], 3*self.numN, msg="Friction cone constraint returns the wrong number of constraints") 
+        self.assertEqual(r.shape, (3*self.numN,), msg="Friction cone constraint returns the wrong number of constraints") 
 
     def test_equal_timestep_constraint(self):
         """Check that the add_equal_time_constraints method executes"""

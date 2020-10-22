@@ -129,19 +129,19 @@ class ContactImplicitDirectTranscription():
         for n in range(0, self.num_time_samples-1):
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self.__normal_distance_constraint, 
-                        lb=np.zeros(shape=(3*self.numN,)),
+                        lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
             # Sliding velocity constraint 
             self.prog.AddConstraint(self.__sliding_velocity_constraint,
-                        lb=np.zeros((3*self.numT,)),
+                        lb=np.concatenate([np.zeros((2*self.numT,)), -np.full((self.numT,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
                         description="sliding_velocity")
             # Friction cone constraint
             self.prog.AddConstraint(self.__friction_cone_constraint, 
-                        lb=np.zeros(shape=(3*self.numN,)),
+                        lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
