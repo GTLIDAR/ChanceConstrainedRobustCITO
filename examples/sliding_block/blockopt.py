@@ -32,7 +32,7 @@ trajopt.add_state_constraint(knotpoint=100, value=xf)
 # Set all the timesteps to be equal
 trajopt.add_equal_time_constraints()
 # Add a running cost on the controls
-Q = 100 * np.ones((1,1))
+Q = 10 * np.ones((1,1))
 b = np.zeros((1,))
 trajopt.add_quadratic_running_cost(Q, b, [trajopt.u], name="ControlCost")
 R = np.diag([1,1,1,1])
@@ -51,8 +51,8 @@ trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 prog = trajopt.get_program()
 # Set the SNOPT solver options
 prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-4)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-4)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
 # Check the problem for bugs in the constraints

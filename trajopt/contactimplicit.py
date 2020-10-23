@@ -98,14 +98,14 @@ class ContactImplicitDirectTranscription():
         # At each knot point, add
         #   Bounding box constraints on the timesteps
         #   Equality constraints enforcing the dynamics
-        for n in range(0, self.num_time_samples-2):
+        for n in range(0, self.num_time_samples-1):
             # Add in timestep bounding box constraint
             self.prog.AddBoundingBoxConstraint(self.minimum_timestep, self.maximum_timestep, self.h[n,:])
             # Add joint limit constraints
             if self.jl:
                 # Add dynamics as constraints 
                 self.prog.AddConstraint(self.__backward_dynamics, 
-                            lb=np.zeros(shape=(self.x.shape[0],1)),
+                            lb=np.zeros(shape=(self.x.shape[0], 1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
                             vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1], self.jl[:,n+1]), axis=0),
                             description="dynamics")
@@ -120,13 +120,13 @@ class ContactImplicitDirectTranscription():
                 self.prog.AddConstraint(self.__backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0],1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
-                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n+1], self.l[:,n+1]), axis=0),
+                            vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
                             description="dynamics")        
             
     def __add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
         # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
-        for n in range(0, self.num_time_samples-1):
+        for n in range(0, self.num_time_samples):
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self.__normal_distance_constraint, 
                         lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
