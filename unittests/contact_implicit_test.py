@@ -25,14 +25,13 @@ class ContactImplicitTest(unittest.TestCase):
     
     def setUp(self):
         """Defines some dummy variables for use in each constraint evaluation"""
-        self.h = np.ones((self.opt.h.shape[0],))
-        self.u = np.ones((self.opt.u.shape[0],))
-        self.x = np.zeros((self.opt.x.shape[0],))
-        self.l = np.zeros((self.opt.l.shape[0],))
-        context = self.model.multibody.CreateDefaultContext()
-        Jn, Jt = self.model.GetContactJacobians(context)
-        self.numN = Jn.shape[0]
-        self.numT = Jt.shape[0]
+        self.h = np.array([0.01])
+        self.u = np.array([2.5])
+        self.x1 = np.array([0.0, 1.0, 0.1, 0.5])
+        self.x2 = np.array([1.0, 0.5, 0.2, 0.1])
+        self.l = np.array([10.0, 1.5, 2.1, 0.5, 3.7, 4.2])
+        self.numN = 1
+        self.numT = 4
 
     def test_opt_creation(self):
         """Check that the optimization can be set up"""        
@@ -41,27 +40,38 @@ class ContactImplicitTest(unittest.TestCase):
         
     def test_eval_dynamic_constraint(self):
         """Check that the dynamic constraint can be evaluated"""
-        z = np.concatenate([self.h, self.x, self.x, self.u, self.l], axis=0)
+        z = np.concatenate([self.h, self.x1, self.x2, self.u, self.l], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__backward_dynamics(z)
-        self.assertEqual(r.shape, self.x.shape, msg="backwards_dynamics returns a vector with the wrong size")
+        r_true = np.array([0.998, -0.501, 6.5, -40.19])
+        self.assertTrue(np.allclose(r,r_true), msg="Backward dynamics incorrect")
         
     def test_eval_normaldist_constraint(self):
-        """Check that the normal distance constraint can be evaluated"""
-        z = np.concatenate([self.x, self.l[0:self.numN]], axis=0)
+        """Check the normal distance constraint"""
+        # Check that the constraint returns the correct values for non-contact
+        z = np.concatenate([self.x1, self.l[0:self.numN]], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__normal_distance_constraint(z)
-        self.assertEqual(r.shape, (3*self.numN,), msg="normal distance constraint returns the wrong number of constraints")
+        phi = self.x1[1] - 0.5
+        cstr_true = np.array([phi, self.l[0], phi*self.l[0]])
+        self.assertTrue(np.allclose(r, cstr_true), msg="Normal distance constraint incorrect for no-contact")
+        # Check that the constraint returns the correct values for contact
+        z = np.concatenate([self.x2, self.l[0:self.numN]], axis=0)
+        r = self.opt._ContactImplicitDirectTranscription__normal_distance_constraint(z)
+        cstr_true = np.array([0.0, self.l[0], 0.0])
+        self.assertTrue(np.allclose(r, cstr_true), msg="Normal distance constraint incorrect for contact")
 
     def test_eval_slidingvel_constraint(self):
         """Check that the sliding velocity constraint can be evaluated"""
-        z = np.concatenate([self.x,self.l[self.numN:]], axis=0)
+        z = np.concatenate([self.x1,self.l[self.numN:]], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__sliding_velocity_constraint(z)
-        self.assertEqual(r.shape, (3*self.numT,), msg="Sliding velocity constraint returns the wrong number of constraints")
+        r_true = np.array([4.3, 4.2, 4.1, 4.2, 1.5, 2.1, 0.5, 3.7, 6.45, 8.82, 2.05, 15.54])
+        self.assertTrue(np.allclose(r, r_true), msg = "Sliding velocity constraint incorrect")
 
     def test_eval_friccone_constraint(self):
         """Check that the friction cone constraint can be evaluated"""
-        z = np.concatenate([self.x, self.l], axis=0)
+        z = np.concatenate([self.x1, self.l], axis=0)
         r = self.opt._ContactImplicitDirectTranscription__friction_cone_constraint(z)
-        self.assertEqual(r.shape, (3*self.numN,), msg="Friction cone constraint returns the wrong number of constraints") 
+        r_true = np.array([-2.8, 4.2, -11.76])
+        self.assertTrue(np.allclose(r,r_true), msg="Friction cone constraint incorrect") 
 
     def test_equal_timestep_constraint(self):
         """Check that the add_equal_time_constraints method executes"""
@@ -99,8 +109,8 @@ class ContactImplicitTest(unittest.TestCase):
 
     def test_add_state_constraint(self):
         """Check that add_state_constraint executes without error"""
-        q0 = np.array([1,2,3])
-        index = [0,1,2]
+        q0 = np.array([1,2])
+        index = [0,1]
         pre_cstr = len(self.opt.prog.GetAllConstraints())
         self.opt.add_state_constraint(knotpoint=0, value=q0, subset_index=index)
         post_cstr = len(self.opt.prog.GetAllConstraints())

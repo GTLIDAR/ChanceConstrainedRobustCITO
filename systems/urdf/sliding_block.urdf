@@ -2,7 +2,6 @@
 <robot name = "sliding_block">
     <link name = "xtrans"/>
     <link name = "ztrans"/>
-    <link name = "yrot"/>
     <link name = "box">
         <visual>
             <origin xyz = "0 0 0"/>
@@ -33,15 +32,9 @@
     </joint>
     <joint name="zslide" type="prismatic">
         <parent link="ztrans"/>
-        <child link="yrot"/>
-        <origin rpy="0 0 0" xyz="0 0 0"/>
-        <axis xyz="0 0 1"/>
-    </joint>
-    <joint name="yspin" type="revolute">
-        <parent link="yrot"/>
         <child link="box"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
     </joint>
     <!--Actuate the x-translation joint-->
     <transmission name = "xslide_transmission">

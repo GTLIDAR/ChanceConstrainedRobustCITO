@@ -183,7 +183,7 @@ class ContactImplicitDirectTranscription():
         fv = fv - J.transpose().dot(l[0:self.numN + self.numT])
         # Calc position residual from velocity
         dq2 = plant.multibody.MapVelocityToQDot(context, v2)
-        fq = q1 - q2 + h*dq2
+        fq = q2 - q1 - h*dq2
         # Return dynamics defects
         return np.concatenate((fq, fv), axis=0)
     

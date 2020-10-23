@@ -5,6 +5,8 @@ from pydrake.autodiffutils import AutoDiffXd
 SNOPT_DECODER = {
     0: "finished successfully",
     1: "optimality conditions satisfied",
+    2: "feasible point found",
+    3: "requested accuracy could not be achieved",
     11: "infeasible linear constraints",
     12: "infeasible linear equalities",
     13: "nonlinear infeasibilities minimized",
