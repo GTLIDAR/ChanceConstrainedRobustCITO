@@ -1,7 +1,11 @@
 """
 kuka_custom: Example script on adding custom functions to optimization problems, using the Kuka manipulator as an example.
 
-Adapted from "Mathematical Program Multibody Tutorial" on the MIT Drake Website
+This optimization solves the inverse-kinematics problem for the Kuka manipulator arm. The IK objective is formulated as a cost and added to the problem. 
+
+This example highlights adding costs and constraints that rely on MulitbodyPlant to a MathematicalProgram. Such constraints must be implemented for MultibodyPlants based on both the AutoDiffXd-type and the float type. 
+
+Adapted from "Mathematical Program Multibody Tutorial" on the MIT Drake Website https://drake.mit.edu
 
 Luke Drnach
 October 14, 2020

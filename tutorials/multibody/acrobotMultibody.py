@@ -58,33 +58,6 @@ nF = plant.num_frames()
 nJ = plant.num_joints()
 print(f"Acrobot has {nF} frames and {nJ} joints")
 
-# We can get the world body and world frame
-wbody = plant.world_body()
-wframe = plant.world_frame()
-# We can get the bodies and the names of the bodies from the plant
-body_indices = plant.GetBodyIndices(acrobot)
-for n in range(0, len(body_indices)):
-    name = plant.get_body(body_indices[n]).name()
-    print(f"Acrobot body {n} is called {name}")
-    body_frame = plant.get_body(body_indices[n]).body_frame()
-    frame_name = body_frame.name()
-    print(f"Body {name} has a frame called {frame_name}")
-    # We can get the frame index for the body frame as
-    frame_idx = body_frame.index()
-    # Then we can calculate the location of points in the body frames in world coordinates
-    pW = plant.CalcPointsPositions(context, body_frame, [0., 0., 0.], wframe)
-    print(f"The origin of frame {frame_name} in world coordinates is")
-    print(pW)
-    # Alternatively, we can calculate the pose of the body in world coordinates
-    pose = plant.EvalBodyPoseInWorld(context, plant.get_body(body_indices[n]))
-    print(f"The pose of body {name} in world coordinates is")
-    print(pose.GetAsMatrix4())
-    # We can also calculate the Jacobian of the frame in world coordinates
-    J = plant.CalcJacobianTranslationalVelocity(context, JacobianWrtVariable.kQDot, body_frame, [0.,0.,0.], wframe, wframe)
-    print(f"The Jacobian for the origin of body {name} in world coordinates is")
-    print(J)
-
-
 # We CANNOT Get the joint indices using plant.GetJointIndices(acrobot).  The method GetJointIndices does not exist in pydrake
  # Note - we've only explored 4 of the 8 frames in Acrobot. 
 
@@ -101,4 +74,3 @@ joint_parent = joint.frame_on_parent().name()
 joint_name = joint.name()
 print(f"Joint {joint_name} connects parent body {joint_parent} to child body {joint_child}")
 
-# Contact Geometry

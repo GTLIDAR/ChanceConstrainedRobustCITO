@@ -10,7 +10,7 @@ from os import path
 from sys import exit
 # PyDrake Imports 
 from pydrake.common import FindResourceOrThrow
-from pydrake.all import MultibodyPlant, DiagramBuilder, AddMultibodyPlantSceneGraph, RigidTransform
+from pydrake.all import MultibodyPlant, DiagramBuilder, AddMultibodyPlantSceneGraph, RigidTransform, JacobianWrtVariable
 from pydrake.multibody.parsing import Parser
 
 # Import the model from a URDF file
@@ -63,3 +63,6 @@ for id in collisionIds:
     # Then we can calculate the position in world coordinates
     world_pt = plant.CalcPointsPositions(context, body_frame, R.translation(), world_frame)
     print(f"In world coordinates, the collision point is\n {world_pt}")    
+    # Finally, we can calculate the Jacobian for the contact point
+    Jc = plant.CalcJacobianTranslationalVelocity(context, JacobianWrtVariable.kQDot, body_frame, R.translation(), world_frame, world_frame)
+    print(f"The Jacobian for the contact point in world coordinates is \n{Jc}")

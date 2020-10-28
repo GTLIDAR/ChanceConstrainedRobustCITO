@@ -3,6 +3,8 @@ acrobotSwingUp: example direct collocation trajectory optimization in pyDrake
 
 acrobotSwingUp creates and solves the trajectory optimization problem of swinging the acrobot from the downward position to the upward position. The nonlinear program is developed using the DirectTranscription class and solved using SNOPT.
 
+adapted from Direct Collocation for the Acrobot tutorial on Russ Tedrake's Underactuated Robotics course webpage: http://underactuated.mit.edu/trajopt.html
+
 Luke Drnach
 September 30, 2020
 """
@@ -10,6 +12,7 @@ from math import pi
 import matplotlib.pyplot as plt 
 import numpy as np 
 import timeit
+from IPython.display import HTML, display 
 # Import utilities from pydrake
 from pydrake.common import FindResourceOrThrow
 from pydrake.all import (MultibodyPlant, PiecewisePolynomial, DirectCollocation, DiagramBuilder, SceneGraph, PlanarSceneGraphVisualizer, Simulator, TrajectorySource)
@@ -100,13 +103,31 @@ plt.show()
 #   1. Add systems to the Diagram
 #   2. Connect the systems in the Diagram
 
-# builder = DiagramBuilder()
-# # AddSystem is the generic method to add components to the Diagram.
-# # TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
-# source = builder.AddSystem(TrajectorySource(x_traj))
-# scene_graph = builder.AddSystem(SceneGraph())
+builder = DiagramBuilder()
+# AddSystem is the generic method to add components to the Diagram.
+# TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
+source = builder.AddSystem(TrajectorySource(x_traj))
+scene_graph = builder.AddSystem(SceneGraph())
+plant.AddToBuilder(builder, source.get_output_port(0), scene_graph)
 
-# visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
-# builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
+visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
+builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
+simulator = Simulator(builder.Build())
+
+# Simulate and Animate
+if visualizer._show:
+    target_rate = simulator.get_target_realtime_rate()
+    simulator.set_target_realtime_rate(1.0)
+else:
+    print("Simulating...", end=" ")
+    visualizer.start_recording()
+simulator.AdvanceTo(x_traj.end_time())
+if visualizer._show:
+    simulator.set_target_realtime_rate(target_rate)
+else:
+    print('generating animation...')
+    ani = visualizer.get_recording_as_animation()
+    display(HTML(ani.to_jshtml()))
+
 
 print('success')

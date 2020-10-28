@@ -4,6 +4,9 @@ Solve an optimization problem
     s.t. x(0) + x(1) = 1
         x(0) <= x(1)
 
+this example also demonstrates how to add a callback to the program, and use it to visualize the progression of the solver.
+
+Adapted from the MathematicalProgram tutorial on the Drake website: https://drake.mit.edu 
 """
 from pydrake.solvers.mathematicalprogram import MathematicalProgram, Solve 
 import numpy as np 

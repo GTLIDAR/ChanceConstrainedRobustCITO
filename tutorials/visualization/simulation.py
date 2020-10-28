@@ -1,5 +1,5 @@
 """
-simulation.py: Tutorial code on visualizing a simulation in pyDrake
+Tutorial script on visualizing a simulation in pyDrake
 
 Adapted from pyplot_animation_multibodyplant.ipynb Drake tutorial (https://drake.mit.edu/)
 

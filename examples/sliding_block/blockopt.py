@@ -1,5 +1,8 @@
 """
-Contact Implicit Trajectory Optimization for a sliding block
+Contact Implicit Trajectory Optimization for a sliding block. 
+This script is used mainly to test the implementation of Contact Implicit Trajectory Optimization in contactimplicit.py
+
+The goal is to move a 1kg block 5m in 1s. The timesteps are fixed, and the objective is to minimize the control cost and the state deviation from the final position. Boundary constraints are added to the problem to ensure the block starts and stops at rest and at the desired positions. In this example, the timesteps are fixed and equal. 
 
 Luke Drnach
 October 15, 2020
