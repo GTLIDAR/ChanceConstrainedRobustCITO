@@ -16,6 +16,8 @@ from pydrake.systems.analysis import Simulator
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.planar_scenegraph_visualizer import PlanarSceneGraphVisualizer
 
+
+
 def pendulum_example(duration=1., playback=True, show=True):
     """
         Simulate the pendulum
