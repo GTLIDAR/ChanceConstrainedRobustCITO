@@ -23,6 +23,7 @@ plant = MultibodyPlant(time_step=0.0)
 scene_graph = SceneGraph()
 plant.RegisterAsSourceForSceneGraph(scene_graph)
 # Find and load the Acrobot URDF 
+# Note that we cannot include collision geometry in the URDF, otherwise setting up the visualization will fail.
 acro_file = FindResourceOrThrow("drake/examples/acrobot/Acrobot_no_collision.urdf")
 Parser(plant).AddModelFromFile(acro_file)
 # Weld the base frame to the world frame
