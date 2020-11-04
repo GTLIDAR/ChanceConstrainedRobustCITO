@@ -153,6 +153,7 @@ class ContactImplicitDirectTranscription():
             z = [h, x1, x2, u, l, jl]
         Returns the dynamics defect, evaluated using Backward Euler Integration. 
         """
+        #NOTE: Cannot use MultibodyForces.mutable_generalized_forces with AutodiffXd. Numpy throws an exception
         plant, context, mbf = self.__autodiff_or_float(z)
         # Split the variables from the decision variables
         ind = np.cumsum([self.h.shape[1], self.x.shape[0], self.x.shape[0], self.u.shape[0]])
@@ -164,23 +165,23 @@ class ContactImplicitDirectTranscription():
         dv = (v2 - v1)/h
         # Update the context
         plant.multibody.SetPositionsAndVelocities(context, x2)
-        # Set multibodyforces to zero
-        # TODO: Move joint limits, reaction forces, and gravity to MBF
+        # Set mutlibodyForces to zero
         mbf.SetZero()
-        G = plant.multibody.CalcGravityGeneralizedForces(context)
-        # Do inverse dynamics
-        tau = plant.multibody.CalcInverseDynamics(context, dv, mbf)
-        # Calc the residual
+        # calculate generalized forces
         B = plant.multibody.MakeActuationMatrix()
-        # Calculate the residual force
-        fv = tau - B.dot(u) - G
-        # Add in reaction and joint limit forces
+        forces = B.dot(u)
+        # Gravity
+        forces[:] = forces[:] + plant.multibody.CalcGravityGeneralizedForces(context)
+        # Joint limits
         if self.jl:
             l, jl = np.split(l, [self.l.shape[0]])
-            fv = fv - self._Jl.dot(jl)
+            forces[:] = forces[:] + self._Jl.dot(jl)
+        # Ground reaction forces
         Jn, Jt = plant.GetContactJacobians(context)
         J = np.concatenate((Jn, Jt), axis=0)
-        fv = fv - J.transpose().dot(l[0:self.numN + self.numT])
+        forces[:] = forces[:] + J.transpose().dot(l[0:self.numN + self.numT])
+        # Do inverse dynamics
+        fv = plant.multibody.CalcInverseDynamics(context, dv, mbf) - forces
         # Calc position residual from velocity
         dq2 = plant.multibody.MapVelocityToQDot(context, v2)
         fq = q2 - q1 - h*dq2

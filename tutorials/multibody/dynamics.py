@@ -73,7 +73,6 @@ print(f"Inverse dynamics without gravity f = {tau}")
 # To encode generalized forces - including gravity - we can add them in after the fact, or add them in to the MultibodyForces
 force = forces.mutable_generalized_forces()
 force[:] = N
-
 tau_2 = plant.CalcInverseDynamics(context,dv, forces)
 print(f"Inverse dynamics with gravity f = {tau_2}")
 
