@@ -1,6 +1,7 @@
 from os import path 
 from sys import exit
 from pydrake.autodiffutils import AutoDiffXd
+import pickle
 
 SNOPT_DECODER = {
     0: "finished successfully",
@@ -38,6 +39,17 @@ SNOPT_DECODER = {
     141: "wrong number of basic variables",
     142: "error in basis package"
 }
+
+def save(filename, data):
+    """ pickle data in the specified filename """
+    with open(filename, "wb") as output:
+        pickle.dump(data, output, pickle.HIGHEST_PROTOCOL)
+
+def load(filename):
+    """ unpickle the data in the specified filename """
+    with open(filename, "rb") as input:
+        data = pickle.load(input)
+    return data
 
 def FindResource(filename):
     if not path.isfile(filename):
