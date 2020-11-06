@@ -115,3 +115,8 @@ axs3[2].set_xlabel('Time (s)')
 # Show the plots
 plt.show()
 print('Done!')
+
+# Save the results
+file = "data/slidingblock/block_trajopt.pkl"
+data = trajopt.result_to_dict(result)
+utils.save(file, data)

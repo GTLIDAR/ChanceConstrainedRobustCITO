@@ -409,3 +409,20 @@ class ContactImplicitDirectTranscription():
         h = soln.GetSolution(self.h)
         t = np.concatenate((np.zeros(1,), h), axis=0)
         return np.cumsum(t)
+
+    def result_to_dict(self, soln):
+        """ unpack the trajectories from the program result and store in a dictionary"""
+        t = self.get_solution_times(soln)
+        x, u, f, jl = self.reconstruct_all_trajectories(soln)
+        soln_dict = {"time": t,
+                    "state": x,
+                    "control": u, 
+                    "force": f,
+                    "jointlimit": jl,
+                    "solver": soln.get_solver_id().name(),
+                    "success": soln.is_success(),
+                    "exit_code": soln.get_solver_details().info,
+                    "final_cost": soln.get_optimal_cost()
+                    }
+        return soln_dict
+

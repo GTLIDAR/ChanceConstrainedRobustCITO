@@ -1,4 +1,4 @@
-from os import path 
+import os
 from sys import exit
 from pydrake.autodiffutils import AutoDiffXd
 import pickle
@@ -42,6 +42,9 @@ SNOPT_DECODER = {
 
 def save(filename, data):
     """ pickle data in the specified filename """
+    dir = os.path.dirname(filename)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
     with open(filename, "wb") as output:
         pickle.dump(data, output, pickle.HIGHEST_PROTOCOL)
 
@@ -52,10 +55,10 @@ def load(filename):
     return data
 
 def FindResource(filename):
-    if not path.isfile(filename):
+    if not os.path.isfile(filename):
         exit(f"{filename} not found")
     else:
-        return path.abspath(filename)
+        return os.path.abspath(filename)
     
 def CheckProgram(prog):
     """
