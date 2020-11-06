@@ -7,6 +7,8 @@ Luke Drnach
 October 5, 2020
 """
 import numpy as np 
+import sys
+from scipy.special import erfinv
 from pydrake.all import MathematicalProgram
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
@@ -72,6 +74,10 @@ class ContactImplicitDirectTranscription():
         Jn, Jt = self.plant_ad.GetContactJacobians(self.context_ad)
         self.numN = Jn.shape[0]
         self.numT = Jt.shape[0]
+        # Add probability variables
+        self.beta = 0.5
+        self.theta = 0.55
+        self.sigma = 0.1
         self.l = self.prog.NewContinuousVariables(rows=2*self.numN+self.numT, cols=self.num_time_samples, name='l')
         # store a matrix for organizing the friction forces
         self._e = np.zeros((self.numN, self.numT))
@@ -126,11 +132,17 @@ class ContactImplicitDirectTranscription():
     def __add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
         # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
+        lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
+        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
+        # ub_prod = sys.float_info.max * ub_phi
         for n in range(0, self.num_time_samples):
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self.__normal_distance_constraint, 
-                        lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+                        # lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
+                        # ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+                        lb = np.concatenate([np.full((self.numN,), lb_phi), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
+                        ub = np.concatenate([np.full((self.numN,), np.inf), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        # ub = np.concatenate([np.full((3*self.numN,), np.inf)], axis = 0),
                         vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
             # Sliding velocity constraint 
@@ -203,8 +215,9 @@ class ContactImplicitDirectTranscription():
         # Calculate the normal distance
         plant.multibody.SetPositionsAndVelocities(context, x)    
         phi = plant.GetNormalDistances(context)
+        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta) * fN
         # Return the normal distances, forces, and complementary product
-        return np.concatenate((phi, fN, phi*fN), axis=0)
+        return np.concatenate((phi, fN, phi*fN - ub_phi), axis=0)
 
     def __sliding_velocity_constraint(self, z):
         """

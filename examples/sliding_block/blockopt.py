@@ -12,7 +12,7 @@ from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
-
+from scipy.special import erfinv
 # Create the block model with the default flat terrain
 plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
 plant.Finalize()
@@ -24,6 +24,7 @@ trajopt = ContactImplicitDirectTranscription(plant=plant,
                                             num_time_samples=101,
                                             maximum_timestep=0.01,
                                             minimum_timestep=0.01)
+
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
@@ -81,6 +82,7 @@ fig1, axs1 = plt.subplots(3,1)
 axs1[0].plot(t, x[0,:], linewidth=1.5)
 axs1[0].set_title('Horizontal Trajectory')
 axs1[0].set_ylabel('Position')
+# axs1[0].set_xlim
 axs1[1].plot(t,x[2,:], linewidth=1.5)
 axs1[1].set_ylabel('Velocity')
 
@@ -91,10 +93,12 @@ axs1[2].set_xlabel('Time (s)')
 fig2, axs2 = plt.subplots(2,1)
 axs2[0].plot(t, x[1,:], linewidth=1.5)
 axs2[0].set_ylabel('Position')
+axs2[0].set_ylim([0, 2])
 axs2[0].set_title('Vertical Trajectory')
 
 axs2[1].plot(t,x[3,:], linewidth=1.5)
 axs2[1].set_ylabel('Velocity')
+axs2[1].set_ylim([-5, 5])
 axs2[1].set_xlabel('Time (s)')
 # Plot the reaction forces
 fig3, axs3 = plt.subplots(3,1)
@@ -107,8 +111,22 @@ axs3[1].set_ylabel('Friction-x')
 
 axs3[2].plot(t, l[2, :] - l[4,:], linewidth=1.5)
 axs3[2].set_ylabel('Friction-y')
+axs3[2].set_ylim(-0.5, 3)
 axs3[2].set_xlabel('Time (s)')
 
+fig4 , axs4 = plt.subplots(1,1)
+lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
+lb_phi = np.zeros((len(x[1,:]), )) + lb_phi
+ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
+ub_phi = np.zeros((len(x[1,:]), )) + ub_phi
+x_vals = np.linspace(0,100, num = len(x[1,:]))
+
+axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
+axs4.plot(x_vals, lb_phi, 'b-')
+axs4.plot(x_vals, ub_phi, 'b-')
+axs4.set_xlabel('\lambda')
+axs4.set_ylabel('\mu')
+axs4.set_ylim([-0.001,0.03])
 # Show the plots
 plt.show()
 print('Done!')
