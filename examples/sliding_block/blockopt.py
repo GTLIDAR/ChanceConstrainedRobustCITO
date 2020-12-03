@@ -13,6 +13,9 @@ from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from scipy.special import erfinv
+import pickle
+import os
+from tempfile import TemporaryFile
 # Create the block model with the default flat terrain
 plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
 plant.Finalize()
@@ -47,6 +50,10 @@ x_init = np.zeros(trajopt.x.shape)
 for n in range(0, x_init.shape[0]):
     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
 l_init = np.zeros(trajopt.l.shape)
+# load initial trajectories
+# x_init = np.loadtxt('x_traj.txt', dtype = int)
+# u_init = np.loadtxt('u_traj.txt', dtype = int)
+# l_init = np.loadtxt('l_traj.txt', dtype = int)
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
@@ -77,6 +84,11 @@ x = trajopt.reconstruct_state_trajectory(result)
 u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
+# Save trajectory 
+np.savetxt('x_strict.txt', x)
+np.savetxt('u_strict.txt', u)
+np.savetxt('time.txt', t)
+# np.savetxt('l_traj.txt', l, fmt = '%d')
 # Plot the horizontal trajectory
 fig1, axs1 = plt.subplots(3,1)
 axs1[0].plot(t, x[0,:], linewidth=1.5)
@@ -119,14 +131,15 @@ lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
 lb_phi = np.zeros((len(x[1,:]), )) + lb_phi
 ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
 ub_phi = np.zeros((len(x[1,:]), )) + ub_phi
-x_vals = np.linspace(0,100, num = len(x[1,:]))
+x_vals = np.linspace(0,20, num = len(x[1,:]))
 
 axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
 axs4.plot(x_vals, lb_phi, 'b-')
 axs4.plot(x_vals, ub_phi, 'b-')
 axs4.set_xlabel('\lambda')
 axs4.set_ylabel('\mu')
-axs4.set_ylim([-0.001,0.03])
+axs4.set_ylim([-1,1])
+axs4.set_title('Relaxed constrants')
 # Show the plots
 plt.show()
 print('Done!')

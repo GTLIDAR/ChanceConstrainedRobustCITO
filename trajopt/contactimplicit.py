@@ -75,9 +75,9 @@ class ContactImplicitDirectTranscription():
         self.numN = Jn.shape[0]
         self.numT = Jt.shape[0]
         # Add probability variables
-        self.beta = 0.5
-        self.theta = 0.55
-        self.sigma = 0.1
+        self.beta = 0.6
+        self.theta = 0.6
+        self.sigma = 0.0
         self.l = self.prog.NewContinuousVariables(rows=2*self.numN+self.numT, cols=self.num_time_samples, name='l')
         # store a matrix for organizing the friction forces
         self._e = np.zeros((self.numN, self.numT))
@@ -157,6 +157,12 @@ class ContactImplicitDirectTranscription():
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
+            # Normal Velocity constraint
+            self.prog.AddConstraint(self.__normal_velocity_constraint, 
+                        lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
+                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+                        description="normal_velocity")
 
     def __backward_dynamics(self, z):  
         """
@@ -240,6 +246,27 @@ class ContactImplicitDirectTranscription():
         r1 = self._e.transpose().dot(gam) + Jt.dot(dq)
         r2 = fT * r1
         return np.concatenate((r1, fT, r2), axis=0)
+
+    def __normal_velocity_constraint(self, z):
+        """
+        Complementarity constraint between the normal velocity and the normal reaction forces
+
+        Arguments:
+            The decision variable list is stored as :
+                z = [state, normal_forces]
+        """
+        plant, context, _ = self.__autodiff_or_float(z)
+        # Split variables from the decision list
+        ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
+        x, fN, fT, gam = np.split(z, ind)
+        # Get the velocity, and convert to qdot
+        _, v = np.split(x, 2)
+        plant.multibody.SetPositionsAndVelocities(context, x)
+        dq = plant.multibody.MapVelocityToQDot(context, v)
+        # Get the contact Jacobian
+        Jn, _ = plant.GetContactJacobians(context)
+        vN = Jn.dot(dq)
+        return np.concatenate((fN, vN, vN*fN), axis=0)
 
     def __friction_cone_constraint(self, z):
         """
