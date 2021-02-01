@@ -3,6 +3,7 @@ import sys
 from scipy.special import erfinv
 from scipy.stats import norm
 from pydrake.all import MathematicalProgram
+from matplotlib import mlab
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
@@ -89,7 +90,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         # dq = plant.multibody.MapVelocityToQDot(context, v)
         
         # Get the contact Jacobian
-        Jn, _ = plant.GetContactJacobians(context)
+        # Jn, _ = plant.GetContactJacobians(context)
         # print(self.heightVariance)
         assert self.heightVariance > 0, "Distribution is degenerative"
         # print(nContact)
@@ -101,7 +102,9 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         # print(type(phi))
         # print(type(fN))
         f = self.ermCost(fN, phi, sigma)
-        return f * self.ermMultiplier
+        f = np.sum(f, axis = 0) * self.ermMultiplier
+        # print(f)
+        return f
 
     def ermCost(self, x, mu, sigma):
         """
@@ -111,17 +114,26 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         x = x[:]
         mu = mu[:]
         sigma = sigma[:]
+        # x = np.array(x, dtype=float)
+        mu = np.array(mu)
+        sigma = np.array(sigma)
         # nX = len(x)
-        # print(x)
+        # x = np.expand_dims(x, axis = 1)
+        # mu = np.expand_dims(mu, axis = 1)
+        # sigma = np.expand_dims(sigma, axis = 1)
+        # print(x.shape)
+        
         # print(mu)
-        # print(sigma)
+        # print(sigma.shape)
         # Hf = np.zeros(nX, 3*nX, 3*nX)
         
         # check for degenerate distributions
         # check sigma prior
         
+        print(x.dtype)
+        print(type(mu))
+        print(type(sigma))
         
-
         # initialize pdf and cdf
         pdf = norm.pdf(x, mu, sigma)
         cdf = norm.cdf(x, mu, sigma)
@@ -129,6 +141,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         # cdf[degenerate and (x > mu)] = 1
 
         f = np.square(x) - np.square(sigma) * (x + mu) * pdf + (np.square(sigma) + np.square(mu) - np.square(x)) * cdf
+        # print(f)
+        # print(f.shape)
         return f
     
     

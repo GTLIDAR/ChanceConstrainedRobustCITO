@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import norm
 class ParentClass: 
     def __init__(self):
         self.f()
@@ -28,6 +29,10 @@ class ChildClass(ParentClass):
 # A = ChildClass()
 # A.f()
 # A.h()
-A = np.ones(5,)
+A = np.array([-2, -1, 0, 1, 2])
 B = np.ones(5,) * 5
-print(np.square(B))
+mu = 2
+sigma  = 1
+norm_A = norm.pdf(A, mu, sigma)
+print(A)
+print(np.sum(A, axis = 0))

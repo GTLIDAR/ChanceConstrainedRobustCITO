@@ -39,18 +39,21 @@ trajopt.add_state_constraint(knotpoint=0, value=x0)
 trajopt.add_state_constraint(knotpoint=100, value=xf)
 # Set all the timesteps to be equal
 trajopt.add_equal_time_constraints()
+# Add the ERM cost
+ermCost = lambda z: trajopt.distanceERMCost(z)
+trajopt.add_running_cost(ermCost,  [trajopt.x, trajopt.l], name = "ERMCost")
+
 # Add a running cost on the controls
 Q = 10 * np.ones((1,1))
 b = np.zeros((1,))
+# trajopt.add_quadratic_running_cost(Q, b, [trajopt.x, trajopt.l], name="ERMcost")
 trajopt.add_quadratic_running_cost(Q, b, [trajopt.u], name="ControlCost")
+
 R = np.diag([1,1,1,1])
 trajopt.add_quadratic_running_cost(R, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
 cost = lambda h: np.sum(h)
 trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
-# Add the ERM cost
-ermCost = lambda z: trajopt.distanceERMCost(z)
-trajopt.add_running_cost(ermCost, vars = [trajopt.x, trajopt.l], name = "ERMCost")
 # Set the initial trajectory guess
 u_init = np.zeros(trajopt.u.shape)
 x_init = np.zeros(trajopt.x.shape)
