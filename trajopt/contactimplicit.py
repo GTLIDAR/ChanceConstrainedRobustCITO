@@ -13,11 +13,13 @@ from pydrake.all import MathematicalProgram
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
 
+
 class ContactImplicitDirectTranscription():
     """
     Implements contact-implicit trajectory optimization using Direct Transcription
     """
     def __init__(self, plant, context, num_time_samples, minimum_timestep, maximum_timestep):
+        
         """
         Create MathematicalProgram with decision variables and add constraints for the rigid body dynamics, contact conditions, and joint limit constraints
 
@@ -28,6 +30,7 @@ class ContactImplicitDirectTranscription():
                 minimum_timestep: (float) the minimum timestep between knot points
                 maximum_timestep: (float) the maximum timestep between knot points
         """
+        # print("hello")
         # Store parameters
         self.plant_f = plant
         self.context_f = context
@@ -46,15 +49,17 @@ class ContactImplicitDirectTranscription():
         # Create the mathematical program
         self.prog = MathematicalProgram()
         # Add decision variables to the program
-        self.__add_decision_varibles()
+        self._add_decision_variables()
         # Add dynamic constraints 
-        self.__add_dynamic_constraints()
+        self._add_dynamic_constraints()
         # Add contact constraints
-        self.__add_contact_constraints()
+        self._add_contact_constraints()
         # Initialize the timesteps
-        self.__set_initial_timesteps()
+        self._set_initial_timesteps()
+        print("initialize")
+        print(self)
 
-    def __add_decision_varibles(self):
+    def _add_decision_variables(self):
         """
             adds the decision variables for timesteps, states, controls, reaction forces,
             and joint limits to the mathematical program, but does not initialize the 
@@ -62,6 +67,7 @@ class ContactImplicitDirectTranscription():
 
             addDecisionVariables is called during object construction
         """
+        # print("wrong method")
         # Add time variables to the program
         self.h = self.prog.NewContinuousVariables(rows=self.num_time_samples-1, cols=1, name='h')
         # Add state variables to the program
@@ -74,10 +80,6 @@ class ContactImplicitDirectTranscription():
         Jn, Jt = self.plant_ad.GetContactJacobians(self.context_ad)
         self.numN = Jn.shape[0]
         self.numT = Jt.shape[0]
-        # Add probability variables
-        self.beta = 0.6
-        self.theta = 0.6
-        self.sigma = 0.0
         self.l = self.prog.NewContinuousVariables(rows=2*self.numN+self.numT, cols=self.num_time_samples, name='l')
         # store a matrix for organizing the friction forces
         self._e = np.zeros((self.numN, self.numT))
@@ -99,7 +101,7 @@ class ContactImplicitDirectTranscription():
         else:
             self.jl = False
         
-    def __add_dynamic_constraints(self):
+    def _add_dynamic_constraints(self):
         """Add constraints to enforce rigid body dynamics and joint limits"""
         # At each knot point, add
         #   Bounding box constraints on the timesteps
@@ -110,68 +112,70 @@ class ContactImplicitDirectTranscription():
             # Add joint limit constraints
             if self.jl:
                 # Add dynamics as constraints 
-                self.prog.AddConstraint(self.__backward_dynamics, 
+                self.prog.AddConstraint(self._backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0], 1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
                             vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1], self.jl[:,n+1]), axis=0),
                             description="dynamics")
                 # Add joint limit constraints
-                self.prog.AddConstraint(self.__joint_limit_constraint,
+                self.prog.AddConstraint(self._joint_limit_constraint,
                         lb=0,
                         ub=0,
                         vars=np.concatenate((self.x[:,n+1], self.jl[:,n+1]), axis=0),
                         description="joint_limits")
             else:
                 # Add just dynamics as constraints 
-                self.prog.AddConstraint(self.__backward_dynamics, 
+                self.prog.AddConstraint(self._backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0],1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
                             vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
                             description="dynamics")        
             
-    def __add_contact_constraints(self):
+    def _add_contact_constraints(self):
+        print("wrong constraints")
         """ Add complementarity constraints for contact to the optimization problem"""
         # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
-        lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
-        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
+        # lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
+        # ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
         # ub_prod = sys.float_info.max * ub_phi
         for n in range(0, self.num_time_samples):
             # Add complementarity constraints for contact
-            self.prog.AddConstraint(self.__normal_distance_constraint, 
-                        # lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
-                        # ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        lb = np.concatenate([np.full((self.numN,), lb_phi), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        ub = np.concatenate([np.full((self.numN,), np.inf), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+            self.prog.AddConstraint(self._normal_distance_constraint, 
+                        lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
+                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+                        # lb = np.concatenate([np.full((self.numN,), lb_phi), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
+                        # ub = np.concatenate([np.full((self.numN,), np.inf), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
                         # ub = np.concatenate([np.full((3*self.numN,), np.inf)], axis = 0),
                         vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
             # Sliding velocity constraint 
-            self.prog.AddConstraint(self.__sliding_velocity_constraint,
+            self.prog.AddConstraint(self._sliding_velocity_constraint,
                         lb=np.concatenate([np.zeros((2*self.numT,)), -np.full((self.numT,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
                         description="sliding_velocity")
             # Friction cone constraint
-            self.prog.AddConstraint(self.__friction_cone_constraint, 
+            self.prog.AddConstraint(self._friction_cone_constraint, 
                         lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
             # Normal Velocity constraint
-            self.prog.AddConstraint(self.__normal_velocity_constraint, 
+            self.prog.AddConstraint(self._normal_velocity_constraint, 
                         lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="normal_velocity")
 
-    def __backward_dynamics(self, z):  
+    def _backward_dynamics(self, z):  
         """
         backward_dynamics: Backward Euler integration of the dynamics constraints
         Decision variables are passed in through a list in the order:
             z = [h, x1, x2, u, l, jl]
         Returns the dynamics defect, evaluated using Backward Euler Integration. 
         """
-        plant, context, mbf = self.__autodiff_or_float(z)
+        #NOTE: Cannot use MultibodyForces.mutable_generalized_forces with AutodiffXd. Numpy throws an exception
+        plant, context, mbf = self._autodiff_or_float(z)
         # Split the variables from the decision variables
         ind = np.cumsum([self.h.shape[1], self.x.shape[0], self.x.shape[0], self.u.shape[0]])
         h, x1, x2, u, l = np.split(z, ind)
@@ -182,23 +186,23 @@ class ContactImplicitDirectTranscription():
         dv = (v2 - v1)/h
         # Update the context
         plant.multibody.SetPositionsAndVelocities(context, x2)
-        # Set multibodyforces to zero
-        # TODO: Move joint limits, reaction forces, and gravity to MBF
+        # Set mutlibodyForces to zero
         mbf.SetZero()
-        G = plant.multibody.CalcGravityGeneralizedForces(context)
-        # Do inverse dynamics
-        tau = plant.multibody.CalcInverseDynamics(context, dv, mbf)
-        # Calc the residual
+        # calculate generalized forces
         B = plant.multibody.MakeActuationMatrix()
-        # Calculate the residual force
-        fv = tau - B.dot(u) - G
-        # Add in reaction and joint limit forces
+        forces = B.dot(u)
+        # Gravity
+        forces[:] = forces[:] + plant.multibody.CalcGravityGeneralizedForces(context)
+        # Joint limits
         if self.jl:
             l, jl = np.split(l, [self.l.shape[0]])
-            fv = fv - self._Jl.dot(jl)
+            forces[:] = forces[:] + self._Jl.dot(jl)
+        # Ground reaction forces
         Jn, Jt = plant.GetContactJacobians(context)
         J = np.concatenate((Jn, Jt), axis=0)
-        fv = fv - J.transpose().dot(l[0:self.numN + self.numT])
+        forces[:] = forces[:] + J.transpose().dot(l[0:self.numN + self.numT])
+        # Do inverse dynamics
+        fv = plant.multibody.CalcInverseDynamics(context, dv, mbf) - forces
         # Calc position residual from velocity
         dq2 = plant.multibody.MapVelocityToQDot(context, v2)
         fq = q2 - q1 - h*dq2
@@ -206,7 +210,7 @@ class ContactImplicitDirectTranscription():
         return np.concatenate((fq, fv), axis=0)
     
     # Complementarity Constraint functions for Contact
-    def __normal_distance_constraint(self, z):
+    def _normal_distance_constraint(self, z):
         """
         Complementarity constraint between the normal distance to the terrain and the normal reaction force
         
@@ -215,7 +219,7 @@ class ContactImplicitDirectTranscription():
                 z = [state, normal_forces]
         """
         # Check if the decision variables are floats
-        plant, context, _ = self.__autodiff_or_float(z)
+        plant, context, _ = self._autodiff_or_float(z)
         # Split the variables from the decision list
         x, fN = np.split(z, [self.x.shape[0]])
         # Calculate the normal distance
@@ -225,7 +229,7 @@ class ContactImplicitDirectTranscription():
         # Return the normal distances, forces, and complementary product
         return np.concatenate((phi, fN, phi*fN - ub_phi), axis=0)
 
-    def __sliding_velocity_constraint(self, z):
+    def _sliding_velocity_constraint(self, z):
         """
         Complementarity constraint between the relative sliding velocity and the tangential reaction forces
 
@@ -233,7 +237,7 @@ class ContactImplicitDirectTranscription():
             The decision variable list:
                 z = [state, friction_forces, velocity_slacks]
         """
-        plant, context, _ = self.__autodiff_or_float(z)
+        plant, context, _ = self._autodiff_or_float(z)
         # Split variables from the decision list
         x, fT, gam = np.split(z, np.cumsum([self.x.shape[0], self.numT]))
         # Get the velocity, and convert to qdot
@@ -247,7 +251,7 @@ class ContactImplicitDirectTranscription():
         r2 = fT * r1
         return np.concatenate((r1, fT, r2), axis=0)
 
-    def __normal_velocity_constraint(self, z):
+    def _normal_velocity_constraint(self, z):
         """
         Complementarity constraint between the normal velocity and the normal reaction forces
 
@@ -255,7 +259,7 @@ class ContactImplicitDirectTranscription():
             The decision variable list is stored as :
                 z = [state, normal_forces]
         """
-        plant, context, _ = self.__autodiff_or_float(z)
+        plant, context, _ = self._autodiff_or_float(z)
         # Split variables from the decision list
         ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
         x, fN, fT, gam = np.split(z, ind)
@@ -268,7 +272,7 @@ class ContactImplicitDirectTranscription():
         vN = Jn.dot(dq)
         return np.concatenate((fN, vN, vN*fN), axis=0)
 
-    def __friction_cone_constraint(self, z):
+    def _friction_cone_constraint(self, z):
         """
         Complementarity constraint between the relative sliding velocity and the friction cone
 
@@ -276,7 +280,7 @@ class ContactImplicitDirectTranscription():
             The decision variable list is stored as :
                 z = [state,normal_forces, friction_forces, velocity_slacks]
         """
-        plant, context, _ = self.__autodiff_or_float(z)
+        plant, context, _ = self._autodiff_or_float(z)
         ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
         x, fN, fT, gam = np.split(z, ind)
         plant.multibody.SetPositionsAndVelocities(context, x)
@@ -287,7 +291,7 @@ class ContactImplicitDirectTranscription():
         return np.concatenate((r1, gam, r1*gam), axis=0)
 
     # Joint Limit Constraints
-    def __joint_limit_constraint(self, z):
+    def _joint_limit_constraint(self, z):
         """
         Complementarity constraint between the position variables and the joint limit forces
 
@@ -295,7 +299,7 @@ class ContactImplicitDirectTranscription():
             Decision variable list:
                 z = [state, joint_limit_forces]
         """
-        plant, _ = self.__autodiff_or_float(z)
+        plant, _ = self._autodiff_or_float(z)
         # Get configuration and joint limit forces
         x, jl = np.split(z, [self.x.shape[0]])
         q, _ = np.split(x, 2)
@@ -308,14 +312,14 @@ class ContactImplicitDirectTranscription():
                                 axis=0)
         return np.concatenate([qdiff, jl, jl*qdiff], axis=0)
      
-    def __autodiff_or_float(self, z):
+    def _autodiff_or_float(self, z):
         """Returns the autodiff or float implementation of model and context based on the dtype of the decision variables"""
         if z.dtype == "float":
             return (self.plant_f, self.context_f, self.mbf_f)
         else:
             return (self.plant_ad, self.context_ad, self.mbf_ad)
 
-    def __set_initial_timesteps(self):
+    def _set_initial_timesteps(self):
         """Set the initial timesteps to their maximum values"""
         self.prog.SetInitialGuess(self.h, self.maximum_timestep*np.ones(self.h.shape))
 
@@ -332,6 +336,7 @@ class ContactImplicitDirectTranscription():
 
     def add_running_cost(self, cost_func, vars=None, name="RunningCost"):
         """Add a running cost to the program"""
+        
         integrated_cost = lambda x: np.array(x[0] * cost_func(x[1:]))
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
@@ -448,3 +453,20 @@ class ContactImplicitDirectTranscription():
         h = soln.GetSolution(self.h)
         t = np.concatenate((np.zeros(1,), h), axis=0)
         return np.cumsum(t)
+
+    def result_to_dict(self, soln):
+        """ unpack the trajectories from the program result and store in a dictionary"""
+        t = self.get_solution_times(soln)
+        x, u, f, jl = self.reconstruct_all_trajectories(soln)
+        soln_dict = {"time": t,
+                    "state": x,
+                    "control": u, 
+                    "force": f,
+                    "jointlimit": jl,
+                    "solver": soln.get_solver_id().name(),
+                    "success": soln.is_success(),
+                    "exit_code": soln.get_solver_details().info,
+                    "final_cost": soln.get_optimal_cost()
+                    }
+        return soln_dict
+

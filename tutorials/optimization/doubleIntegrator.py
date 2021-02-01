@@ -1,3 +1,16 @@
+"""
+Example of adding a custom constraint to a mathematical program in pydrake.
+
+This example solves a trajectory optimization problem with a double integrator. The problem is constructed using MathematicalProgram, instead of using DirectCollocation, to highlight several features in MathematicalProgram.
+
+The goal is to drive the double integrator from a non-zero initial state to the origin. No cost is placed on the controls or state. 
+
+This example is adapted from "Trajectory optimization for the double integrator" in Russ Tedrake's Underactuated Robotics course: http://underactuated.mit.edu/trajopt.html
+
+Luke Drnach
+October 26, 2020
+"""
+
 import numpy as np 
 import matplotlib.pyplot as plt 
 from pydrake.all import MathematicalProgram, Solve, Variable, eq
@@ -14,7 +27,7 @@ def dynamicsCstr(z):
 
 # Create a  mathematical program
 prog = MathematicalProgram()
-
+# Number of knot points
 N = 284
 
 # Create decision variables
@@ -43,6 +56,7 @@ result = Solve(prog)
 x_sol = result.GetSolution(x)
 print(f"Optimization successful? {result.is_success()}")
 
+# Display the optimized trajectories
 plt.figure()
 plt.plot(x_sol[0,:], x_sol[1,:])
 plt.xlabel('q')

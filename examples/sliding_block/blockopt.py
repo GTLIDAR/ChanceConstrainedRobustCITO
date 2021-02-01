@@ -1,5 +1,8 @@
 """
-Contact Implicit Trajectory Optimization for a sliding block
+Contact Implicit Trajectory Optimization for a sliding block. 
+This script is used mainly to test the implementation of Contact Implicit Trajectory Optimization in contactimplicit.py
+
+The goal is to move a 1kg block 5m in 1s. The timesteps are fixed, and the objective is to minimize the control cost and the state deviation from the final position. Boundary constraints are added to the problem to ensure the block starts and stops at rest and at the desired positions. In this example, the timesteps are fixed and equal. 
 
 Luke Drnach
 October 15, 2020
@@ -8,7 +11,8 @@ October 15, 2020
 import timeit
 import numpy as np
 import matplotlib.pyplot as plt
-from trajopt.contactimplicit import ContactImplicitDirectTranscription
+# from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
@@ -22,7 +26,7 @@ plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # Create a Contact Implicit Trajectory Optimization
-trajopt = ContactImplicitDirectTranscription(plant=plant,
+trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
                                             num_time_samples=101,
                                             maximum_timestep=0.01,
@@ -44,6 +48,9 @@ trajopt.add_quadratic_running_cost(R, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
 cost = lambda h: np.sum(h)
 trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
+# Add the ERM cost
+ermCost = lambda z: trajopt.distanceERMCost(z)
+trajopt.add_running_cost(ermCost, vars = [trajopt.x, trajopt.l], name = "ERMCost")
 # Set the initial trajectory guess
 u_init = np.zeros(trajopt.u.shape)
 x_init = np.zeros(trajopt.x.shape)
@@ -143,3 +150,8 @@ axs4.set_title('Relaxed constrants')
 # Show the plots
 plt.show()
 print('Done!')
+
+# Save the results
+file = "data/slidingblock/block_trajopt.pkl"
+data = trajopt.result_to_dict(result)
+utils.save(file, data)

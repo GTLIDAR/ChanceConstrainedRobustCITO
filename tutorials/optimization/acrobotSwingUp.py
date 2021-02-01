@@ -3,6 +3,8 @@ acrobotSwingUp: example direct collocation trajectory optimization in pyDrake
 
 acrobotSwingUp creates and solves the trajectory optimization problem of swinging the acrobot from the downward position to the upward position. The nonlinear program is developed using the DirectTranscription class and solved using SNOPT.
 
+adapted from Direct Collocation for the Acrobot tutorial on Russ Tedrake's Underactuated Robotics course webpage: http://underactuated.mit.edu/trajopt.html
+
 Luke Drnach
 September 30, 2020
 """
@@ -12,16 +14,25 @@ import numpy as np
 import timeit
 # Import utilities from pydrake
 from pydrake.common import FindResourceOrThrow
-from pydrake.all import (MultibodyPlant, PiecewisePolynomial, DirectCollocation, DiagramBuilder, SceneGraph, PlanarSceneGraphVisualizer, Simulator, TrajectorySource)
+from pydrake.all import (MultibodyPlant, PiecewisePolynomial, DirectCollocation, DiagramBuilder, SceneGraph, PlanarSceneGraphVisualizer, Simulator, TrajectorySource, MultibodyPositionToGeometryPose, AddMultibodyPlantSceneGraph, Solve, RigidTransform)
 from pydrake.multibody.parsing import Parser
 from pydrake.solvers.snopt import SnoptSolver
 
-# Find and load the Acrobot URDF 
-acro_file = FindResourceOrThrow("drake/examples/acrobot/Acrobot.urdf")
 # Create a Multibody plant model from the acrobot
-plant = MultibodyPlant(0.0)
-acrobot = Parser(plant).AddModelFromFile(acro_file)
+plant = MultibodyPlant(time_step=0.0)
+scene_graph = SceneGraph()
+plant.RegisterAsSourceForSceneGraph(scene_graph)
+# Find and load the Acrobot URDF 
+# Note that we cannot include collision geometry in the URDF, otherwise setting up the visualization will fail.
+acro_file = FindResourceOrThrow("drake/examples/acrobot/Acrobot_no_collision.urdf")
+Parser(plant).AddModelFromFile(acro_file)
+# Weld the base frame to the world frame
+base_frame = plant.GetBodyByName("base_link").body_frame()
+world_frame = plant.world_frame()
+plant.WeldFrames(world_frame, base_frame, RigidTransform())
+# Finalize the plant
 plant.Finalize()
+
 # Create the default context
 context0 = plant.CreateDefaultContext()
 # Create a direct collocation problem
@@ -31,8 +42,7 @@ prog = DirectCollocation(
     num_time_samples=21,
     maximum_timestep=0.20,
     minimum_timestep=0.05,
-    input_port_index=plant.get_actuation_input_port().get_index()
-)
+    input_port_index=plant.get_actuation_input_port().get_index())
 prog.AddEqualTimeIntervalsConstraints()
 # Add initial and final state constraints
 x0 = [0, 0, 0, 0]
@@ -71,12 +81,12 @@ print('SNOPT Exit Status: ',details.info)
 
 # Unpack the trajectories
 u_traj = prog.ReconstructInputTrajectory(result)
-x_traj = prog.ReconstructStateTrajectory(result)
+x_traj = prog.ReconstructStateTrajectory(result)    
+
 time = np.linspace(u_traj.start_time(), u_traj.end_time(), 101)
 u_lookup = np.vectorize(u_traj.value)
 u = u_lookup(time)
 x = np.hstack([x_traj.value(t) for t in time])
-
 # Plot the trajectory
 plt.figure()
 plt.subplot(3,1,1)
@@ -100,13 +110,23 @@ plt.show()
 #   1. Add systems to the Diagram
 #   2. Connect the systems in the Diagram
 
-# builder = DiagramBuilder()
-# # AddSystem is the generic method to add components to the Diagram.
-# # TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
-# source = builder.AddSystem(TrajectorySource(x_traj))
-# scene_graph = builder.AddSystem(SceneGraph())
-
-# visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
-# builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
-
-print('success')
+# AddSystem is the generic method to add components to the Diagram.
+# TrajectorySource is a type of System whose output is the value of a trajectory at a time in the system's context
+builder = DiagramBuilder()
+source = builder.AddSystem(TrajectorySource(x_traj))
+builder.AddSystem(scene_graph)
+to_pose = builder.AddSystem(MultibodyPositionToGeometryPose(plant, input_multibody_state=True))
+# Wire the ports of hte systems together
+builder.Connect(source.get_output_port(0), to_pose.get_input_port())
+builder.Connect(to_pose.get_output_port(), scene_graph.get_source_pose_port(plant.get_source_id()))
+# Add a visualizer
+T_VW = np.array([[1., 0., 0., 0.],
+                    [0., 0., 1., 0.],
+                    [0., 0., 0., 1.]])
+visualizer = builder.AddSystem(PlanarSceneGraphVisualizer(scene_graph, T_VW=T_VW, xlim=[-4.,4.], ylim=[-4., 4.], show=True))
+builder.Connect(scene_graph.get_pose_bundle_output_port(), visualizer.get_input_port(0))
+# build and run the simulator
+simulator = Simulator(builder.Build())
+simulator.Initialize()
+simulator.set_target_realtime_rate(1.0)
+simulator.AdvanceTo(x_traj.end_time())

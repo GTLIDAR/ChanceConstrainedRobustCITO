@@ -1,5 +1,5 @@
 """
-simulation.py: Tutorial code on visualizing a simulation in pyDrake
+Tutorial script on visualizing a simulation in pyDrake
 
 Adapted from pyplot_animation_multibodyplant.ipynb Drake tutorial (https://drake.mit.edu/)
 
@@ -15,6 +15,8 @@ from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.planar_scenegraph_visualizer import PlanarSceneGraphVisualizer
+
+
 
 def pendulum_example(duration=1., playback=True, show=True):
     """

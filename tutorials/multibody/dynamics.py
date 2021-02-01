@@ -14,8 +14,8 @@ from math import pi
 from pydrake.common import FindResourceOrThrow
 from pydrake.all import MultibodyPlant
 from pydrake.multibody.parsing import Parser
-from pydrake.autodiffutils import AutoDiffXd
-from pydrake.multibody.tree import MultibodyForces_
+#from pydrake.autodiffutils import AutoDiffXd
+from pydrake.multibody.tree import MultibodyForces
 #%% [markdown]
 #   # Loading a the acrobot model from a URDF
 #   
@@ -61,4 +61,18 @@ print('The acutator selection matrix for acrobot is B = ')
 print(B)
 # Note that calculating the dynamics in this fashion is not computationally efficient. It would be more efficient to use plant.CalcInverseDynamics instead, given the generalized acceleration and applied forces
 
-# %%
+# Create empty generalized applied forces
+forces = MultibodyForces(plant)
+forces.SetZero()
+# Create some generalized accelerations
+dv = [0.2, 0.6]
+# Do inverse dynamics to find the generalized forces needed to achieve these accelerations
+# NOTE: INVERSE DYNAMICS DOES NOT AUTOMATICALLY ENCODE THE GRAVITATIONAL FORCES
+tau = plant.CalcInverseDynamics(context, dv, forces)
+print(f"Inverse dynamics without gravity f = {tau}")
+# To encode generalized forces - including gravity - we can add them in after the fact, or add them in to the MultibodyForces
+force = forces.mutable_generalized_forces()
+force[:] = N
+tau_2 = plant.CalcInverseDynamics(context,dv, forces)
+print(f"Inverse dynamics with gravity f = {tau_2}")
+
