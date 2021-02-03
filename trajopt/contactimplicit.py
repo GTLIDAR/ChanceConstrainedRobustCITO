@@ -57,7 +57,7 @@ class ContactImplicitDirectTranscription():
         # Initialize the timesteps
         self._set_initial_timesteps()
         print("initialize")
-        print(self)
+        
 
     def _add_decision_variables(self):
         """
@@ -337,7 +337,7 @@ class ContactImplicitDirectTranscription():
     def add_running_cost(self, cost_func, vars=None, name="RunningCost"):
         """Add a running cost to the program"""
         
-        integrated_cost = lambda x: np.array(x[0] * cost_func(x[1:]))
+        integrated_cost = lambda x: x[0] * cost_func(x[1:])
         for n in range(0, self.num_time_samples-1):
             new_vars = [var[:,n] for var in vars]
             new_vars.insert(0, self.h[n,:])

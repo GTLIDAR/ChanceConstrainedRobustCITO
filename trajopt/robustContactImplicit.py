@@ -1,6 +1,8 @@
 import numpy as np 
 import sys
 from scipy.special import erfinv
+# from scipy.special import erf
+# from mpmath import *
 from scipy.stats import norm
 from pydrake.all import MathematicalProgram
 from matplotlib import mlab
@@ -8,6 +10,7 @@ from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 import warnings
+import math
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     def __init__(self, plant, context, num_time_samples, minimum_timestep, maximum_timestep):
         super(ChanceConstrainedContactImplicit, self).__init__(plant, context, num_time_samples, minimum_timestep, maximum_timestep)
@@ -32,7 +35,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         self.ermMultiplier = 1
     def _add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
-        print("correct constraints")
+        # print("correct constraints")
         # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
         lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
         ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
@@ -75,9 +78,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             the decision variable list:
                 z = [state, normal_forces]
         """
-        # nX = self.plant_ad.multibody.num_positions() + self.plant_ad.multibody.num_velocities()
-        # nQ = self.plant_ad.multibody.num_positions()
-        # nL = len(_lambda) # ia lambda np array or list?
+        
         # Check if the decision variables are floats
         plant, context, _ = self._autodiff_or_float(z)
         # Split the variables from the decision list
@@ -85,25 +86,14 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         plant.multibody.SetPositionsAndVelocities(context, x)    
         phi = plant.GetNormalDistances(context)
         nContact = len(phi)
-        # plant, context, _ = self.__autodiff_or_float(z)
-        # plant.multibody.SetPositionsAndVelocities(context, x)
-        # dq = plant.multibody.MapVelocityToQDot(context, v)
         
-        # Get the contact Jacobian
-        # Jn, _ = plant.GetContactJacobians(context)
-        # print(self.heightVariance)
         assert self.heightVariance > 0, "Distribution is degenerative"
-        # print(nContact)
-        # print(np.ones(3))
-        # print(np.ones(nContact))
-        # print(self.heightVariance)
+        
         sigma = np.ones(nContact) * self.heightVariance
-        # print(type(sigma))
-        # print(type(phi))
-        # print(type(fN))
+        
         f = self.ermCost(fN, phi, sigma)
         f = np.sum(f, axis = 0) * self.ermMultiplier
-        # print(f)
+        
         return f
 
     def ermCost(self, x, mu, sigma):
@@ -114,35 +104,44 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         x = x[:]
         mu = mu[:]
         sigma = sigma[:]
-        # x = np.array(x, dtype=float)
-        mu = np.array(mu)
-        sigma = np.array(sigma)
-        # nX = len(x)
-        # x = np.expand_dims(x, axis = 1)
-        # mu = np.expand_dims(mu, axis = 1)
-        # sigma = np.expand_dims(sigma, axis = 1)
-        # print(x.shape)
         
-        # print(mu)
-        # print(sigma.shape)
-        # Hf = np.zeros(nX, 3*nX, 3*nX)
-        
-        # check for degenerate distributions
-        # check sigma prior
-        
-        print(x.dtype)
-        print(type(mu))
-        print(type(sigma))
         
         # initialize pdf and cdf
-        pdf = norm.pdf(x, mu, sigma)
-        cdf = norm.cdf(x, mu, sigma)
+        pdf = self._pdf(x, mu, sigma)
+        cdf = self._cdf(x, mu, sigma)
 
-        # cdf[degenerate and (x > mu)] = 1
-
-        f = np.square(x) - np.square(sigma) * (x + mu) * pdf + (np.square(sigma) + np.square(mu) - np.square(x)) * cdf
-        # print(f)
-        # print(f.shape)
+        f = x**2 - sigma**2 * (x + mu) * pdf + (sigma**2+ mu**2 - x**2) * cdf
+        
         return f
-    
-    
+    def _pdf (self, x, mean, sd):
+        prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
+        return prob_density
+
+    def _cdf (self, x, mean, sd):
+        cum_dist = np.zeros(len(x))
+        # for i in range(len(x)):
+        #     A = self._erf((x[i] - mean)/(sd * np.sqrt(2)))
+        #     cum_dist[i] = 1/2 *(1 + A)
+        A = self._erf((x - mean)/(sd * np.sqrt(2)))
+        cum_dist = 1/2 *(1 + A)
+        return cum_dist
+        
+    def _erf(self, x):
+    # save the sign of x
+        sign = np.zeros(len(x))
+        sign[x >= 0] = 1
+        sign[x < 0] = -1
+        x = abs(x)
+
+        # constants
+        a1 =  0.254829592
+        a2 = -0.284496736
+        a3 =  1.421413741
+        a4 = -1.453152027
+        a5 =  1.061405429
+        p  =  0.3275911
+
+        # A&S formula 7.1.26
+        t = 1.0/(1.0 + p*x)
+        y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
+        return sign*y # erf(-x) = -erf(x)

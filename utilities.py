@@ -72,7 +72,7 @@ def CheckProgram(prog):
     for cost in prog.generic_costs():
         # Evaluate the cost with floats
         try:
-            print(f"Evaluating {cost.evaluator().get_description()} with floats")
+            # print(f"Evaluating {cost.evaluator().get_description()} with floats")
             xs = [1.]*len(cost.variables())
             cost.evaluator().Eval(xs)
             
@@ -81,7 +81,7 @@ def CheckProgram(prog):
             print(f"Evaluating {cost.evaluator().get_description()} with floats produces a RuntimeError")
         # Evaluate with AutoDiff arrays
         try:
-            print(f"Evaluating {cost.evaluator().get_description()} with AutoDiffs")
+            # print(f"Evaluating {cost.evaluator().get_description()} with AutoDiffs")
             xd = [AutoDiffXd(1.)] * len(cost.variables())
             cost.evaluator().Eval(xd)
             
