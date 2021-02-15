@@ -11,14 +11,70 @@ from pydrake.multibody.tree import MultibodyForces_
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 import warnings
 import math
+
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
-    def __init__(self, plant, context, num_time_samples, minimum_timestep, maximum_timestep):
+    '''
+    This class implements chance constrained 
+    relaxation for contact implicit trajectory 
+    optimization with optional uncertainty settings.
+    '''
+
+    def __init__(self, plant, context, 
+                        num_time_samples = 101, 
+                        minimum_timestep = 0.01, 
+                        maximum_timestep = 0.01, 
+                        chance_param = [0.5, 0.5, 0], 
+                        distance_param = [0.1, 1], 
+                        friction_param = [0.1, 0.01, 1], 
+                        optionERM = 1, 
+                        optionCC = 1):
+        # add chance constraint variables
+        self.beta = chance_param[0]
+        self.theta = chance_param[1]
+        self.sigma = chance_param[2]
+        # add distance ERM variables
+        self.distanceVariance = distance_param[0]
+        self.ermDistanceMultiplier = distance_param[1]
+        # add friction ERM variables
+        self.frictionVariance = friction_param[0]
+        self.frictionBias = friction_param[1]
+        self.ermFrictionMultiplier = friction_param[2]
+        # Chance Constraint options:
+        #   option 1: strict contact constraints
+        #   option 2: chance constraint relaxation for normal distance
+        #   option 3: chance constraint relaxation for friction cone
+        #   option 4: chance constraint relaxation for normal distance and friction cone
+
+        self.cc_option = optionCC
         super(ChanceConstrainedContactImplicit, self).__init__(plant, context, num_time_samples, minimum_timestep, maximum_timestep)
-        # ermCost = lambda z: trajopt.distanceERMCost(z)
-        # self.add_running_cost(cost, vars = [trajopt.x, trajopt.l], name = "ERMCost")
+        # Uncertainty options:
+        #   option 1: no uncertainty
+        #   option 2: uncertainty from normal distance
+        #   option 3: unvertainty from friction cone
+        #   option 4: uncertainty from both normal distance And friction cone
+        self.erm_option = optionERM
+        
+        if self.erm_option is 1:
+            print("Nominal case")
+        elif self.erm_option is 2:
+            print("Uncertainty from normal distance")
+            distanceErmCost = lambda z: self.distanceERMCost(z)
+            self.add_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
+        elif self.erm_option is 3:
+            print("Uncertainty from fricion cone")
+            frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
+            self.add_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
+        elif self.erm_option is 4:
+            print("Uncertainty from both normal distance and fricion cone")
+            distanceErmCost = lambda z: self.distanceERMCost(z)
+            self.add_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
+            frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
+            self.add_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
+        else:
+            print("Undefined chance constraint option")
+            quit()
 
     def _add_decision_variables(self):
-        # super(ChanceConstrainedContactImplicit, self).__add_decision_varibles()
         """
             adds the decision variables for timesteps, states, controls, reaction forces,
             and joint limits to the mathematical program, but does not initialize the 
@@ -26,53 +82,99 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
             addDecisionVariables is called during object construction
         """
-        super(ChanceConstrainedContactImplicit, self)._add_decision_variables()
-        
-        self.beta = 0.6
-        self.theta = 0.6
-        self.sigma = 0.1
-        self.heightVariance = 0.1
-        self.ermMultiplier = 1
-    def _add_contact_constraints(self):
-        """ Add complementarity constraints for contact to the optimization problem"""
-        # print("correct constraints")
-        # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
-        lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
-        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
-        # ub_prod = sys.float_info.max * ub_phi
-        for n in range(0, self.num_time_samples):
-            # Add complementarity constraints for contact
-            self.prog.AddConstraint(self._normal_distance_constraint, 
-                        # lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
-                        # ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        lb = np.concatenate([np.full((self.numN,), lb_phi), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        ub = np.concatenate([np.full((self.numN,), np.inf), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
-                        # ub = np.concatenate([np.full((3*self.numN,), np.inf)], axis = 0),
+        super(ChanceConstrainedContactImplicit, self)._add_decision_variables() 
+        self.lower_bound, self.upper_bound = self._chance_constraint()
+    
+    def _add_normal_distance_constraint(self, n):
+        self.prog.AddConstraint(self._normal_distance_constraint, 
+                        lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
+                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
-            # Sliding velocity constraint 
-            self.prog.AddConstraint(self._sliding_velocity_constraint,
-                        lb=np.concatenate([np.zeros((2*self.numT,)), -np.full((self.numT,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
-                        description="sliding_velocity")
-            # Friction cone constraint
-            self.prog.AddConstraint(self._friction_cone_constraint, 
+
+    def _add_normal_distance_constraint_relaxed(self, n):
+        self.prog.AddConstraint(self._normal_distance_constraint, 
+                        lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
+                        ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
+                        description="normal_distance")
+
+    def _add_friction_cone_constraint(self, n):
+        self.prog.AddConstraint(self._friction_cone_constraint, 
                         lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
-            # Normal Velocity constraint
-            self.prog.AddConstraint(self._normal_velocity_constraint, 
+
+    def _add_friction_cone_constraint_relaxed(self, n):
+        self.prog.AddConstraint(self._friction_cone_constraint, 
+                        lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
+                        ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+                        description="friction_cone")
+    
+    def _add_sliding_velocity_constraint(self, n):
+        self.prog.AddConstraint(self._sliding_velocity_constraint,
+                        lb=np.concatenate([np.zeros((2*self.numT,)), -np.full((self.numT,), np.inf)], axis=0),
+                        ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
+                        description="sliding_velocity")
+
+    def _add_normal_velocity_constraint(self, n):
+        self.prog.AddConstraint(self._normal_velocity_constraint, 
                         lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
                         ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="normal_velocity")
-    # Complementarity Constraint functions for Contact
     
+    def _add_contact_constraints(self):
+        """ Add complementarity constraints for contact to the optimization problem"""
+        if self.cc_option is 1:
+            print("Strict contact constraints")
+            for n in range(0, self.num_time_samples):
+                self._add_normal_distance_constraint(n)
+                self._add_sliding_velocity_constraint(n)
+                self._add_friction_cone_constraint(n)
+                self._add_normal_velocity_constraint(n)
+        elif self.cc_option is 2:
+            print("Normal distance contact constraint relaxed")
+            for n in range(0, self.num_time_samples):
+                self._add_normal_distance_constraint_relaxed(n)
+                self._add_sliding_velocity_constraint(n)
+                self._add_friction_cone_constraint(n)
+                self._add_normal_velocity_constraint(n)
+        elif self.cc_option is 3:
+            print("Friction cone contact constraint relaxed")
+            for n in range(0, self.num_time_samples):
+                self._add_normal_distance_constraint(n)
+                self._add_sliding_velocity_constraint(n)
+                self._add_friction_cone_constraint_relaxed(n)
+                self._add_normal_velocity_constraint(n)
+        elif self.cc_option is 4:
+            print("Both Normal distance and Friction cone contact constaints relaxed")
+            for n in range(0, self.num_time_samples):
+                self._add_normal_distance_constraint_relaxed(n)
+                self._add_sliding_velocity_constraint(n)
+                self._add_friction_cone_constraint_relaxed(n)
+                self._add_normal_velocity_constraint(n)
+        else:
+            print("Undefined chance constraint option")
+            quit()
+    
+    def _chance_constraint(self):
+        '''
+        This method implements chance constraint
+        Output:
+            [lower_bound, upper_bound]
+
+        '''
+        lower_bound = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
+        upper_bound = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
+        return [lower_bound, upper_bound]
+
     def distanceERMCost(self, z):
         """
-        ERM cost function
+        ERM cost function for normal distance
 
         Arguments:
             the decision variable list:
@@ -87,32 +189,42 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         phi = plant.GetNormalDistances(context)
         nContact = len(phi)
         
-        assert self.heightVariance > 0, "Distribution is degenerative"
+        assert self.distanceVariance >= 0, "Distribution is degenerative"
         
-        sigma = np.ones(nContact) * self.heightVariance
+        sigma = np.ones(nContact) * self.distanceVariance
         
         f = self.ermCost(fN, phi, sigma)
-        f = np.sum(f, axis = 0) * self.ermMultiplier
-        
+        f = np.sum(f, axis = 0) * self.ermDistanceMultiplier
+        return f
+
+    def frictionConeERMCost(self, z):
+        """
+        ERM cost function for friction cone
+
+        Arguments:
+            The decision variable list:
+                z = [state,normal_forces, friction_forces, velocity_slacks]
+        """
+        plant, context, _ = self._autodiff_or_float(z)
+        ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
+        x, fN, fT, gam = np.split(z, ind)
+        r = self._friction_cone_constraint(z)
+        frictionConeDefect = r[0]
+        sigma = self.frictionVariance * fN + self.frictionBias
+        f = self.ermCost(gam, frictionConeDefect, sigma)
+        f = np.sum(f, axis = 0) * self.ermFrictionMultiplier
         return f
 
     def ermCost(self, x, mu, sigma):
         """
         Gaussian ERM implementation
         """
-        # print(x)
-        x = x[:]
-        mu = mu[:]
-        sigma = sigma[:]
-        
-        
         # initialize pdf and cdf
         pdf = self._pdf(x, mu, sigma)
         cdf = self._cdf(x, mu, sigma)
-
         f = x**2 - sigma**2 * (x + mu) * pdf + (sigma**2+ mu**2 - x**2) * cdf
-        
         return f
+
     def _pdf (self, x, mean, sd):
         prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
         return prob_density
@@ -127,8 +239,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         return cum_dist
         
     def _erf(self, x):
-    # save the sign of x
-        sign = np.zeros(len(x))
+        # save the sign of x
+        sign = np.zeros(len(x),)
         sign[x >= 0] = 1
         sign[x < 0] = -1
         x = abs(x)
@@ -145,3 +257,5 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         t = 1.0/(1.0 + p*x)
         y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
         return sign*y # erf(-x) = -erf(x)
+
+    

@@ -87,57 +87,67 @@ class ContactImplicitDirectTranscription():
         for n in range(0, self.numN):
             self._e[n, n*nD:(n+1)*nD] = 1
         # And joint limit variables to the program
-        qhigh = self.plant_ad.multibody.GetPositionUpperLimits()
+        # qhigh = self.plant_ad.multibody.GetPositionUpperLimits()
         qlow = self.plant_ad.multibody.GetPositionLowerLimits()
-        # Assume that the joint limits be two-sided
-        low_inf = np.isinf(qlow)
-        high_inf = np.isinf(qhigh)
-        assert all(low_inf == high_inf), "Joint limits must be two-sided"
-        if not all(low_inf):
-            nJL = sum(low_inf)
-            self.jl = self.NewContinuousVariables(rows=2*nJL, cols=self.num_time_samples, name='jl')
-            self._Jl = np.concatenate([np.eye(nJL), -np.eye(nJL)], axis=0)
-            self._liminds = not low_inf
+
+        self.Jl = self.plant_ad.joint_limit_jacobian()
+        if self.Jl is not None:
+            qlow = self.plant_ad.multibody.GetPositionLowerLimits()
+            self._liminds = np.isfinite(qlow)
+            nJL = sum(self._liminds)
+            self.jl = self.prog.NewContinuousVariables(rows = 2*nJL, cols=self.num_time_samples, name="jl")
         else:
             self.jl = False
+
+        # # Assume that the joint limits be two-sided
+        # low_inf = np.isinf(qlow)
+        # high_inf = np.isinf(qhigh)
+        # assert all(low_inf == high_inf), "Joint limits must be two-sided"
+        # if not all(low_inf):
+        #     nJL = sum(low_inf)
+        #     self.jl = self.prog.NewContinuousVariables(rows=2*nJL, cols=self.num_time_samples, name='jl')
+        #     self._Jl = np.concatenate([np.eye(nJL), -np.eye(nJL)], axis=0)
+        #     self._liminds = [low_inf == False]
+        # else:
+        #     self.jl = False
         
     def _add_dynamic_constraints(self):
         """Add constraints to enforce rigid body dynamics and joint limits"""
         # At each knot point, add
         #   Bounding box constraints on the timesteps
         #   Equality constraints enforcing the dynamics
-        for n in range(0, self.num_time_samples-1):
-            # Add in timestep bounding box constraint
-            self.prog.AddBoundingBoxConstraint(self.minimum_timestep, self.maximum_timestep, self.h[n,:])
-            # Add joint limit constraints
-            if self.jl:
-                # Add dynamics as constraints 
+        if self.Jl is not None:
+            # Create the joint limit constraint
+            self.joint_limit_cstr = NonlinearComplementarityFcn(self._joint_limit, xdim=self.x.shape[0], zdim=self.jl.shape[0], slack=0)
+            for n in range(0, self.num_time_samples-1):
+                # Add timestep constraints
+                self.prog.AddBoundingBoxConstraint(self.minimum_timestep, self.maximum_timestep, self.h[n,:])
+                # Add dynamics constraints
                 self.prog.AddConstraint(self._backward_dynamics, 
                             lb=np.zeros(shape=(self.x.shape[0], 1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
                             vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1], self.jl[:,n+1]), axis=0),
                             description="dynamics")
                 # Add joint limit constraints
-                self.prog.AddConstraint(self._joint_limit_constraint,
-                        lb=0,
-                        ub=0,
+                self.prog.AddConstraint(self.joint_limit_cstr,
+                        lb=self.joint_limit_cstr.lower_bound(),
+                        ub=self.joint_limit_cstr.upper_bound(),
                         vars=np.concatenate((self.x[:,n+1], self.jl[:,n+1]), axis=0),
                         description="joint_limits")
-            else:
-                # Add just dynamics as constraints 
+        else:
+            for n in range(0, self.num_time_samples-1):
+                # Add timestep constraints
+                self.prog.AddBoundingBoxConstraint(self.minimum_timestep, self.maximum_timestep, self.h[n,:])
+                # Add dynamics as constraints 
                 self.prog.AddConstraint(self._backward_dynamics, 
-                            lb=np.zeros(shape=(self.x.shape[0],1)),
+                            lb=np.zeros(shape=(self.x.shape[0], 1)),
                             ub=np.zeros(shape=(self.x.shape[0], 1)),
                             vars=np.concatenate((self.h[n,:], self.x[:,n], self.x[:,n+1], self.u[:,n], self.l[:,n+1]), axis=0),
-                            description="dynamics")        
+                            description="dynamics")          
             
     def _add_contact_constraints(self):
-        print("wrong constraints")
         """ Add complementarity constraints for contact to the optimization problem"""
-        # At each knot point, add constraints for normal distance, sliding velocity, and friction cone
-        # lb_phi = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
-        # ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
-        # ub_prod = sys.float_info.max * ub_phi
+        print("wrong constraints")
         for n in range(0, self.num_time_samples):
             # Add complementarity constraints for contact
             self.prog.AddConstraint(self._normal_distance_constraint, 
@@ -291,7 +301,7 @@ class ContactImplicitDirectTranscription():
         return np.concatenate((r1, gam, r1*gam), axis=0)
 
     # Joint Limit Constraints
-    def _joint_limit_constraint(self, z):
+    def _joint_limit(self, z):
         """
         Complementarity constraint between the position variables and the joint limit forces
 
@@ -470,3 +480,32 @@ class ContactImplicitDirectTranscription():
                     }
         return soln_dict
 
+class NonlinearComplementarityFcn():
+    """
+    Implements a complementarity relationship involving a nonlinear function, such that:
+        f(x) >= 0
+        z >= 0
+        f(x)*z <= s
+    where f is the function, x and z are decision variables, and s is a slack parameter.
+    By default s=0 (strict complementarity)
+    """
+    def __init__(self, fcn, xdim=0, zdim=1, slack=0.):
+        self.fcn = fcn
+        self.xdim = xdim
+        self.zdim = zdim
+        self.slack = slack
+    
+    def __call__(self, vars):
+        """Evaluate the complementarity constraint """
+        x, z = np.split(vars, [self.xdim])
+        fcn_val = self.fcn(x)
+        return np.concatenate((fcn_val, z, fcn_val * z - self.slack), axis=0)
+
+    def lower_bound(self):
+        return np.concatenate((np.zeros((2*self.zdim,)), -np.full((self.zdim,), np.inf)), axis=0)
+    
+    def upper_bound(self):
+        return np.concatenate((np.full((2*self.zdim,), np.inf), np.zeros((self.zdim,))), axis=0)
+
+    def set_slack(self, val):
+        self.slack = val

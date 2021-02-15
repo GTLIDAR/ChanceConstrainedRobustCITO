@@ -194,3 +194,36 @@ class TimeSteppingMultibodyPlant():
             # Apply the rotation matrix
             all_tangents[n*4 : (n+1)*4, :] = R.multiply(tangent.transpose()).transpose()
         return all_tangents
+
+    def joint_limit_jacobian(self):
+        """ 
+        Returns a matrix for mapping the positive-only joint limit torques to 
+        """
+        # Create the Jacobian as if all joints were limited
+        nV = self.multibody.num_velocities()
+        I = np.eye(nV)
+        # Check for infinite limits
+        qhigh= self.multibody.GetPositionUpperLimits()
+        qlow = self.multibody.GetPositionLowerLimits()
+        # Assert two sided limits
+        low_inf = np.isinf(qlow)
+        assert all(low_inf == np.isinf(qhigh))
+        # Make the joint limit Jacobian
+        if not all(low_inf):
+            # Remove floating base limits
+            floating = self.multibody.GetFloatingBaseBodies()
+            floating_pos = []
+            while len(floating) > 0:
+                body = self.multibody.get_body(floating.pop())
+                if body.has_quaternion_dofs():
+                    floating_pos.append(body.floating_positions_start())
+            # Remove entries corresponding to the extra dof from quaternions
+            low_inf = np.delete(low_inf, floating_pos)
+            low_inf = np.squeeze(low_inf)
+            # Zero-out the entries that don't correspond to joint limits
+            I[low_inf, low_inf] = 0
+            # Remove the columns that don't correspond to joint limits
+            I = np.delete(I, low_inf, axis=1)
+            return np.concatenate([I, -I], axis=1)
+        else:
+            return None
