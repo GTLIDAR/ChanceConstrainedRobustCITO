@@ -135,7 +135,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                 self._add_normal_distance_constraint(n)
                 self._add_sliding_velocity_constraint(n)
                 self._add_friction_cone_constraint(n)
-                self._add_normal_velocity_constraint(n)
+                # self._add_normal_velocity_constraint(n)
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
             for n in range(0, self.num_time_samples):

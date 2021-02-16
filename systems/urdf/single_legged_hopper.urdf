@@ -35,7 +35,7 @@
         <child link="leg_1"/>
         <axis xyz="0 1 0"/>
       	<origin xyz = "0 0 0"/>
-        <limit lower="-0.785" upper="0.785" effort="1000" velocity="1"/>
+        <limit lower="-0.785" upper="0.785"/>
     </joint>
     
     <!-- add link for leg 1 -->
@@ -58,7 +58,7 @@
         <child link="leg_2"/>
         <axis xyz="0 1 0"/>
       	<origin xyz = "0 0 -1"/>
-        <limit lower="-0.785" upper="0.785" effort="1000" velocity="1"/>
+        <limit lower="-1.5" upper="1.5"/>
     </joint>
     
     <!-- add link for leg 2 -->
@@ -81,7 +81,7 @@
         <child link="foot"/>
         <axis xyz="0 1 0"/>
       	<origin xyz = "0 0 -1"/>
-        <limit lower="-0.785" upper="0.785" effort="1000" velocity="1"/>
+        <limit lower="-0.785" upper="0.785"/>
     </joint>
     <link name="foot">
         <inertial>

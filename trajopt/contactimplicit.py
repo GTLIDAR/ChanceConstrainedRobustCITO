@@ -204,9 +204,9 @@ class ContactImplicitDirectTranscription():
         # Gravity
         forces[:] = forces[:] + plant.multibody.CalcGravityGeneralizedForces(context)
         # Joint limits
-        if self.jl:
+        if self.Jl is not None:
             l, jl = np.split(l, [self.l.shape[0]])
-            forces[:] = forces[:] + self._Jl.dot(jl)
+            forces[:] = forces[:] + self.Jl.dot(jl)
         # Ground reaction forces
         Jn, Jt = plant.GetContactJacobians(context)
         J = np.concatenate((Jn, Jt), axis=0)
@@ -309,7 +309,7 @@ class ContactImplicitDirectTranscription():
             Decision variable list:
                 z = [state, joint_limit_forces]
         """
-        plant, _ = self._autodiff_or_float(z)
+        plant, _ , _= self._autodiff_or_float(z)
         # Get configuration and joint limit forces
         x, jl = np.split(z, [self.x.shape[0]])
         q, _ = np.split(x, 2)
@@ -320,7 +320,10 @@ class ContactImplicitDirectTranscription():
         qdiff = np.concatenate((q[q_valid] - qmax[q_valid],
                                 qmin[q_valid] - q[q_valid]),
                                 axis=0)
-        return np.concatenate([qdiff, jl, jl*qdiff], axis=0)
+        return np.concatenate((q[q_valid] - qmin[q_valid],
+                                qmax[q_valid] - q[q_valid]),
+                                axis=0)
+        # return np.concatenate([qdiff, jl, jl*qdiff], axis=0)
      
     def _autodiff_or_float(self, z):
         """Returns the autodiff or float implementation of model and context based on the dtype of the decision variables"""
@@ -396,8 +399,19 @@ class ContactImplicitDirectTranscription():
         """
         #TODO Check the inputs
         A = np.eye(value.shape[0])
+        # if subset_index is None:
+        #     subset_index = range(0, self.x.shape[0])       
         if subset_index is None:
-            subset_index = range(0, self.x.shape[0])       
+            subset_index = np.array(range(0, self.x.shape[0]))  
+        # Check that the input is within the joint limits
+        qmin = self.plant_f.multibody.GetPositionLowerLimits()
+        qmax = self.plant_f.multibody.GetPositionUpperLimits()
+        q_subset = subset_index[subset_index < self.plant_f.multibody.num_positions()]
+        q = value[subset_index < self.plant_f.multibody.num_positions()]
+        if any(q < qmin[q_subset]):
+            raise ValueError("State constraint violates position lower limits")
+        if any(q > qmax[q_subset]):
+            raise ValueError("State constraint violates position upper limits")
         self.prog.AddLinearEqualityConstraint(Aeq=A, beq=value, vars=self.x[subset_index, knotpoint]).evaluator().set_description("StateConstraint")
             
     def add_control_limits(self, umin, umax):
