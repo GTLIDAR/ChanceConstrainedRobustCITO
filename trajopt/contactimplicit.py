@@ -12,7 +12,7 @@ from scipy.special import erfinv
 from pydrake.all import MathematicalProgram
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
-
+from utilities import MathProgIterationPrinter
 
 class ContactImplicitDirectTranscription():
     """
@@ -30,7 +30,7 @@ class ContactImplicitDirectTranscription():
                 minimum_timestep: (float) the minimum timestep between knot points
                 maximum_timestep: (float) the maximum timestep between knot points
         """
-        # print("hello")
+        print("initialize")
         # Store parameters
         self.plant_f = plant
         self.context_f = context
@@ -56,7 +56,7 @@ class ContactImplicitDirectTranscription():
         self._add_contact_constraints()
         # Initialize the timesteps
         self._set_initial_timesteps()
-        print("initialize")
+        
         
 
     def _add_decision_variables(self):
@@ -134,6 +134,11 @@ class ContactImplicitDirectTranscription():
                         ub=self.joint_limit_cstr.upper_bound(),
                         vars=np.concatenate((self.x[:,n+1], self.jl[:,n+1]), axis=0),
                         description="joint_limits")
+                # self.prog.AddConstraint(self._joint_limit_constraint,
+                #         lb=self._joint_limit_constraint.lower_bound(),
+                #         ub=self._joint_limit_constraint.upper_bound(),
+                #         vars=np.concatenate((self.x[:,n+1], self.jl[:,n+1]), axis=0),
+                #         description="joint_limits")
         else:
             for n in range(0, self.num_time_samples-1):
                 # Add timestep constraints
@@ -288,7 +293,7 @@ class ContactImplicitDirectTranscription():
 
         Arguments:
             The decision variable list is stored as :
-                z = [state,normal_forces, friction_forces, velocity_slacks]
+                z = [state, normal_forces, friction_forces, velocity_slacks]
         """
         plant, context, _ = self._autodiff_or_float(z)
         ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
@@ -298,7 +303,8 @@ class ContactImplicitDirectTranscription():
         mu = np.diag(mu)
         # Match friction forces to normal forces
         r1 = mu.dot(fN) - self._e.dot(fT)
-        return np.concatenate((r1, gam, r1*gam), axis=0)
+        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta) * gam
+        return np.concatenate((r1, gam, r1*gam - ub_phi), axis=0)
 
     # Joint Limit Constraints
     def _joint_limit(self, z):
@@ -307,9 +313,27 @@ class ContactImplicitDirectTranscription():
 
         Arguments:
             Decision variable list:
+                z = [state]
+        """
+        plant, _, _ = self._autodiff_or_float(z)
+        # Get configuration and joint limit forces
+        q = z[0:plant.multibody.num_positions()]
+        # Calculate distance from limits
+        qmax = plant.multibody.GetPositionUpperLimits()
+        qmin = plant.multibody.GetPositionLowerLimits()
+        q_valid = np.isfinite(qmax)
+        return np.concatenate((q[q_valid] - qmin[q_valid],
+                                qmax[q_valid] - q[q_valid]),
+                                axis=0)
+        
+    def _joint_limit_constraint(self, z):
+        """
+        Complementarity constraint between the position variables and the joint limit forces
+        Arguments:
+            Decision variable list:
                 z = [state, joint_limit_forces]
         """
-        plant, _ , _= self._autodiff_or_float(z)
+        plant, _ = self.__autodiff_or_float(z)
         # Get configuration and joint limit forces
         x, jl = np.split(z, [self.x.shape[0]])
         q, _ = np.split(x, 2)
@@ -320,11 +344,8 @@ class ContactImplicitDirectTranscription():
         qdiff = np.concatenate((q[q_valid] - qmax[q_valid],
                                 qmin[q_valid] - q[q_valid]),
                                 axis=0)
-        return np.concatenate((q[q_valid] - qmin[q_valid],
-                                qmax[q_valid] - q[q_valid]),
-                                axis=0)
-        # return np.concatenate([qdiff, jl, jl*qdiff], axis=0)
-     
+        return np.concatenate([qdiff, jl, jl*qdiff], axis=0)
+
     def _autodiff_or_float(self, z):
         """Returns the autodiff or float implementation of model and context based on the dtype of the decision variables"""
         if z.dtype == "float":
@@ -493,6 +514,18 @@ class ContactImplicitDirectTranscription():
                     "final_cost": soln.get_optimal_cost()
                     }
         return soln_dict
+    
+    def enable_cost_display(self, display='terminal'):
+        """
+        Add a visualization callback to print/show the cost values and constraint violations at each iteration
+        Parameters:
+            display: "terminal" prints the costs and constraints to the terminal
+                     "figure" prints the costs and constraints to a figure window
+                     "all"    prints the costs and constraints to the terminal and to a figure window
+        """
+        printer = MathProgIterationPrinter(prog=self.prog, display=display)
+        all_vars = self.prog.decision_variables()
+        self.prog.AddVisualizationCallback(printer, all_vars)
 
 class NonlinearComplementarityFcn():
     """

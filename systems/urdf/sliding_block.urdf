@@ -17,11 +17,17 @@
         <!-- Put a single collision point at the bottom of the box-->
         <!--First collision point-->
         <collision>
-            <origin xyz="0.0 0.0 -0.5"/>
+            <origin xyz="0 0.0 -0.5"/>
             <geometry>
                 <sphere radius="0"/>
             </geometry>
         </collision>
+        <!-- <collision>
+            <origin xyz="-0.5 0.0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision> -->
     </link>
     <!--Add joints between the dummy frames to model the brick-->
     <joint name="xslide" type="prismatic">

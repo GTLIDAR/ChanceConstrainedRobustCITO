@@ -96,15 +96,22 @@
             </geometry>
         </visual>
         <!-- collision point 1 -->
-        <collision>
+        <!-- <collision>
             <origin xyz="0.15 0 0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <sphere radius="0"/>
             </geometry>
-        </collision>
+        </collision> -->
         <!-- collision point 2 -->
-        <collision>
+        <!-- <collision>
         <origin xyz="-0.15 0 0"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision> -->
+        <!-- single collision point -->
+        <collision>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <sphere radius="0"/>
             </geometry>

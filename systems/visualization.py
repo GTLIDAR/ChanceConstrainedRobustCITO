@@ -6,7 +6,7 @@ January 19, 2021
 """
 
 import numpy as np
-from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose)
+from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, ClippingRange, DepthRange, DepthRenderCamera, RenderCameraCore, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose)
 from pydrake.geometry import DrakeVisualizer
 # from pydrake.geometry import drake_visualizer
 from pydrake.math import RigidTransform, RollPitchYaw

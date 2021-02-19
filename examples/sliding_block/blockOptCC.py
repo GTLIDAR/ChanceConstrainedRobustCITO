@@ -11,7 +11,7 @@ from scipy.special import erfinv
 import pickle
 import os
 from tempfile import TemporaryFile
-from plotting_tool import plot_ERM
+from plotting_tool import plot_CC
 # Create the block model with the default flat terrain
 plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
 plant.Finalize()
@@ -20,44 +20,41 @@ step_size = 0.01
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta, sigma = 0.6, 0.6, 0.2
-chance_params = np.array([beta, theta, sigma])
+beta, theta = 0.6, 0.6
+sigmas = [0, 0.1, 0.3, 1]
 # set friction ERM parameters
 friction_bias = 0.01
 friction_multiplier = 1e3
-# set normal distance ERM parameters
-distance_multiplier = 10
 # set uncertainty option
-uncertainty_option = 2
+uncertainty_option = 3
 # set chance constraint option
 cc_option = 3
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
 # Add a running cost weights on the controls
-R= 1* np.ones((1,1))
+R= 1 * np.ones((1,1))
 b = np.zeros((1,))
 # Add running cost weight on state
 Q = 1*np.diag([1,1,1,1])
 # Add a final cost on the total time
 cost = lambda h: np.sum(h)
 # frictionVar = np.array([0.1])
-frictionVar = np.array([0.01, 0.03, 0.05, 0.1, 0.3])
-distanceVar = np.array([0.01, 0.03, 0.05, 0.1, 0.3])
+friction_variance = 0.03
+friction_erm_params = np.array([friction_variance, friction_bias, friction_multiplier])
+
 # iterations 
-iteration = len(frictionVar)
+iteration = len(sigmas)
 # initialized saved trajectories
-horizontal_position = np.zeros([iteration, num_step])
-horizontal_velocity = np.zeros([iteration, num_step])
+horizontal_position = np.zeros([iteration + 1, num_step])
+horizontal_velocity = np.zeros([iteration + 1, num_step])
 control = np.zeros([iteration,num_step])
 
 # loop through different variance values
 for i in range (iteration):
-    friction_variance = frictionVar[i]
-    distance_variance = distanceVar[i]
+    sigma = sigmas[i]
 
-    friction_erm_params = np.array([friction_variance, friction_bias, friction_multiplier])
-    distance_erm_params = np.array([distance_variance, distance_multiplier])
+    chance_params = np.array([beta, theta, sigma])
     # Create a Contact Implicit Trajectory Optimization
     trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
@@ -65,7 +62,6 @@ for i in range (iteration):
                                             maximum_timestep=step_size,
                                             minimum_timestep=step_size,
                                             chance_param= chance_params,
-                                            distance_param = distance_erm_params,
                                             friction_param= friction_erm_params,
                                             optionERM = uncertainty_option,
                                             optionCC = cc_option)
@@ -111,5 +107,5 @@ for i in range (iteration):
     horizontal_velocity[i, :] = x[2, :]
     control[i, :] = u[0, :]
 # plot trajectory
-plot(horizontal_position, control, t, iteration, frictionVar)
+plot_CC(horizontal_position, control, t, iteration, sigmas)
 print('Done!')

@@ -26,22 +26,22 @@ plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta, sigma = 0.6, 0.6, 0.2
+beta, theta, sigma = 0.6, 0.6, 0
 chance_params = np.array([beta, theta, sigma])
 # set friction ERM parameters
-friction_variance = 0.1
+friction_variance = 0.03
 
 friction_bias = 0.01
-friction_multiplier = 20
+friction_multiplier = 1e3
 friction_erm_params = np.array([friction_variance, friction_bias, friction_multiplier])
 # set normal distance ERM parameters
 distance_variance = 0.1
 distance_multiplier = 10
 distance_erm_params = np.array([distance_variance, distance_multiplier])
 # set uncertainty option
-erm_option = 1
+erm_option = 3
 # set chance constraint option
-cc_option = 4
+cc_option = 3
 # Create a Contact Implicit Trajectory Optimization
 trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
@@ -98,6 +98,7 @@ prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
+# trajopt.enable_cost_display(display='figure')
 # Check the problem for bugs in the constraints
 if not utils.CheckProgram(prog):
     quit()
@@ -119,10 +120,11 @@ x = trajopt.reconstruct_state_trajectory(result)
 u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
-# # # Save trajectory 
-# np.savetxt('x.txt', x, fmt = '%d')
-# np.savetxt('u.txt', u, fmt = '%d')
-# np.savetxt('l.txt', l, fmt = '%d')
+# # Save trajectory 
+# np.savetxt('x.txt', x, fmt = '%1.3f')
+# np.savetxt('u.txt', u, fmt = '%1.3f')
+# np.savetxt('l.txt', l, fmt = '%1.3f')
+# np.savetxt('t.txt', t, fmt = '%1.3f')
 # np.savetxt('x.txt', x)
 # np.savetxt('u.txt', u)
 # np.savetxt('l.txt', l)
@@ -152,6 +154,7 @@ axs1[2].set_xlabel('Time (s)')
 # axs2[1].set_ylim([-5, 5])
 # axs2[1].set_xlabel('Time (s)')
 # Plot the reaction forces
+# one collision point
 fig3, axs3 = plt.subplots(3,1)
 axs3[0].plot(t, l[0,:], linewidth=1.5)
 axs3[0].set_ylabel('Normal')
@@ -162,23 +165,24 @@ axs3[1].set_ylabel('Friction-x')
 
 axs3[2].plot(t, l[2, :] - l[4,:], linewidth=1.5)
 axs3[2].set_ylabel('Friction-y')
-axs3[2].set_ylim(-0.5, 3)
+# axs3[2].set_ylim(-0.5, 3)
 axs3[2].set_xlabel('Time (s)')
 
-# fig4 , axs4 = plt.subplots(1,1)
+fig4 , axs4 = plt.subplots(1,1)
 # lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
-# lb_phi = np.zeros((len(x[1,:]), )) + lb_phi
+lb_phi = np.zeros((len(x[1,:]), )) + trajopt.lower_bound
 # ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
-# ub_phi = np.zeros((len(x[1,:]), )) + ub_phi
-# x_vals = np.linspace(0,20, num = len(x[1,:]))
+ub_phi = np.zeros((len(x[1,:]), )) + trajopt.upper_bound
+x_vals = np.linspace(0,20, num = len(x[1,:]))
 
 # axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
-# axs4.plot(x_vals, lb_phi, 'b-')
-# axs4.plot(x_vals, ub_phi, 'b-')
-# axs4.set_xlabel('\lambda')
-# axs4.set_ylabel('\mu')
+axs4.plot(l[1,:] - l[3,:], x[1,:] - 0.5, 'ro')
+axs4.plot(x_vals, lb_phi, 'b-')
+axs4.plot(x_vals, ub_phi, 'b-')
+axs4.set_xlabel('friction force')
+axs4.set_ylabel('normal distance')
 # axs4.set_ylim([-1,1])
-# axs4.set_title('Relaxed constrants')
+axs4.set_title('Relaxed constrants')
 # Show the plots
 plt.show()
 print('Done!')

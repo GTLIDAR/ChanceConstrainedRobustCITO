@@ -8,7 +8,7 @@ from pydrake.all import MathematicalProgram
 from matplotlib import mlab
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
-from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from trajopt.contactimplicit import ContactImplicitDirectTranscription, NonlinearComplementarityFcn
 import warnings
 import math
 
@@ -62,7 +62,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             self.add_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
         elif self.erm_option is 3:
             print("Uncertainty from fricion cone")
-            frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
+            frictionConeErmCost = lambda z: self.frictionConeERMCost(z)**2
             self.add_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
         elif self.erm_option is 4:
             print("Uncertainty from both normal distance and fricion cone")
@@ -95,7 +95,9 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     def _add_normal_distance_constraint_relaxed(self, n):
         self.prog.AddConstraint(self._normal_distance_constraint, 
                         lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        # ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+
                         vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
                         description="normal_distance")
 
@@ -109,7 +111,9 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     def _add_friction_cone_constraint_relaxed(self, n):
         self.prog.AddConstraint(self._friction_cone_constraint, 
                         lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
+                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
+
+                        # ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
     
@@ -129,6 +133,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     
     def _add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
+        
         if self.cc_option is 1:
             print("Strict contact constraints")
             for n in range(0, self.num_time_samples):

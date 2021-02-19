@@ -13,13 +13,6 @@ def ermCost(x, mu, sigma):
     cdf = norm.cdf(x, mu, sigma)
     f = x**2 - sigma**2 * (x + mu) * pdf + (sigma**2+ mu**2 - x**2) * cdf
     return f
-# Create the block model with the default flat terrain
-# plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
-# plant.Finalize()
-# # Get the default context
-# context = plant.multibody.CreateDefaultContext()
-# trajopt = ChanceConstrainedContactImplicit(plant = plant, 
-#                                             context = context)
 
 mu = np.arange(100, -100, -1)
 z = np.arange(-100, 100, 1)
