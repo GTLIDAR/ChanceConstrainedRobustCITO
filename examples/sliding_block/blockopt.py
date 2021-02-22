@@ -29,19 +29,19 @@ context = plant.multibody.CreateDefaultContext()
 beta, theta, sigma = 0.6, 0.6, 0
 chance_params = np.array([beta, theta, sigma])
 # set friction ERM parameters
-friction_variance = 0.03
+friction_variance = 0.1
 
 friction_bias = 0.01
-friction_multiplier = 1e3
+friction_multiplier = 1e6
 friction_erm_params = np.array([friction_variance, friction_bias, friction_multiplier])
 # set normal distance ERM parameters
 distance_variance = 0.1
-distance_multiplier = 10
+distance_multiplier = 1e6
 distance_erm_params = np.array([distance_variance, distance_multiplier])
 # set uncertainty option
 erm_option = 3
 # set chance constraint option
-cc_option = 3
+cc_option = 1
 # Create a Contact Implicit Trajectory Optimization
 trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
@@ -65,7 +65,7 @@ trajopt.add_equal_time_constraints()
 # print(trajopt.uncertainty_option)
 
 # Add a running cost on the controls
-R= 10 * np.ones((1,1))
+R= 100 * np.ones((1,1))
 b = np.zeros((1,))
 
 trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
@@ -77,25 +77,25 @@ cost = lambda h: np.sum(h)
 trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
 
 # Set the initial trajectory guess
-u_init = np.zeros(trajopt.u.shape)
-x_init = np.zeros(trajopt.x.shape)
-for n in range(0, x_init.shape[0]):
-    x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
-l_init = np.zeros(trajopt.l.shape)
+# u_init = np.zeros(trajopt.u.shape)
+# x_init = np.zeros(trajopt.x.shape)
+# for n in range(0, x_init.shape[0]):
+#     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
+# l_init = np.zeros(trajopt.l.shape)
+
 # load initial trajectories
-# x_init2 = np.loadtxt('x.txt', dtype = float)
-# u_init = np.loadtxt('u.txt', dtype = float)
-# l_init = np.loadtxt('l.txt', dtype = float)
-# x_init = np.loadtxt('x.txt')
-# # u_init = np.loadtxt('u.txt')
-# l_init = np.loadtxt('l.txt')
+x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+u_init = u_init.reshape(trajopt.u.shape)
+l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
+
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
 # Set the SNOPT solver options
 prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6
 prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
 # trajopt.enable_cost_display(display='figure')
@@ -121,10 +121,10 @@ u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
 # # Save trajectory 
-# np.savetxt('x.txt', x, fmt = '%1.3f')
-# np.savetxt('u.txt', u, fmt = '%1.3f')
-# np.savetxt('l.txt', l, fmt = '%1.3f')
-# np.savetxt('t.txt', t, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/warm_start/x.txt', x, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/warm_start/u.txt', u, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/warm_start/l.txt', l, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/warm_start/t.txt', t, fmt = '%1.3f')
 # np.savetxt('x.txt', x)
 # np.savetxt('u.txt', u)
 # np.savetxt('l.txt', l)
@@ -168,26 +168,26 @@ axs3[2].set_ylabel('Friction-y')
 # axs3[2].set_ylim(-0.5, 3)
 axs3[2].set_xlabel('Time (s)')
 
-fig4 , axs4 = plt.subplots(1,1)
-# lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
-lb_phi = np.zeros((len(x[1,:]), )) + trajopt.lower_bound
-# ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
-ub_phi = np.zeros((len(x[1,:]), )) + trajopt.upper_bound
-x_vals = np.linspace(0,20, num = len(x[1,:]))
+# fig4 , axs4 = plt.subplots(1,1)
+# # lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
+# lb_phi = np.zeros((len(x[1,:]), )) + trajopt.lower_bound
+# # ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
+# ub_phi = np.zeros((len(x[1,:]), )) + trajopt.upper_bound
+# x_vals = np.linspace(0,20, num = len(x[1,:]))
 
-# axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
-axs4.plot(l[1,:] - l[3,:], x[1,:] - 0.5, 'ro')
-axs4.plot(x_vals, lb_phi, 'b-')
-axs4.plot(x_vals, ub_phi, 'b-')
-axs4.set_xlabel('friction force')
-axs4.set_ylabel('normal distance')
+# # axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
+# axs4.plot(l[1,:] - l[3,:], x[1,:] - 0.5, 'ro')
+# axs4.plot(x_vals, lb_phi, 'b-')
+# axs4.plot(x_vals, ub_phi, 'b-')
+# axs4.set_xlabel('friction force')
+# axs4.set_ylabel('normal distance')
 # axs4.set_ylim([-1,1])
-axs4.set_title('Relaxed constrants')
+# axs4.set_title('Relaxed constrants')
 # Show the plots
 plt.show()
 print('Done!')
 
 # Save the results
-file = "data/slidingblock/block_trajopt.pkl"
-data = trajopt.result_to_dict(result)
-utils.save(file, data)
+# file = "data/slidingblock/block_trajopt.pkl"
+# data = trajopt.result_to_dict(result)
+# utils.save(file, data)

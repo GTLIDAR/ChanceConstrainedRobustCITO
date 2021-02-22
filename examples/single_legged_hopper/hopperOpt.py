@@ -25,7 +25,7 @@ cc_option = 1
 context = plant.multibody.CreateDefaultContext()
 # set normal distance ERM parameters
 distance_variance = 0.1
-distance_multiplier = 1e3
+distance_multiplier = 1e5
 distance_erm_params = np.array([distance_variance, distance_multiplier])
 
 # set uncertainty option

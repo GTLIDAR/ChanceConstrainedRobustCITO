@@ -153,27 +153,47 @@ class MathProgIterationPrinter():
 
     def print_to_figure(self, costs, cstrs):
         """ Print costs and constraints to a figure window"""
-
+        
         # Note: Initialize the lines
         if self.iteration == 1:
+            sum_val = 0
             for name, value in costs.items():
-                if name == "FrictionConeERMCost" or name == "ControlCost" or name == "StateCost":
+                
+                if name == "FrictionConeERMCost":
                     self.cost_lines[name] = self.axs[0].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
+                elif name == "ControlCost":
+                    sum_val += value
+                elif name == "StateCost":
+                    name_c = "Control & State Cost"
+                    sum_val += value
+                    self.cost_lines[name_c] = self.axs[0].semilogy([self.iteration], [sum_val], linewidth=1.5, label=name_c)[0]
+
             for name, value in cstrs.items():
                 self.cstr_lines[name] = self.axs[1].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
             self.axs[0].legend()
             self.axs[1].legend()
         else:
             ymax = self.axs[0].get_ylim()[1]
+            sum_val = 0
             for name, value in costs.items():
                 # print(name)
                 # plt.pause(1)
-                if name == "FrictionConeERMCost" or name == "ControlCost" or name == "StateCost":
-                    
+                
+                if name == "FrictionConeERMCost":
                     x = np.append(self.cost_lines[name].get_xdata(), self.iteration)
                     y = np.append(self.cost_lines[name].get_ydata(), value)
                     self.cost_lines[name].set_data((x, y))
                     ymax = max(value, ymax)
+                elif name == "ControlCost":
+                    sum_val += value
+                elif name == "StateCost":
+                    name_c = "Control & State Cost"
+                    sum_val += value
+                    # print(sum_val)
+                    x = np.append(self.cost_lines[name_c].get_xdata(), self.iteration)
+                    y = np.append(self.cost_lines[name_c].get_ydata(), sum_val)
+                    self.cost_lines[name_c].set_data((x, y))
+                    ymax = max(sum_val, ymax)
             #Set new axis limits
             self.axs[0].set_xlim([1, self.iteration])
             self.axs[0].set_ylim([0, ymax])

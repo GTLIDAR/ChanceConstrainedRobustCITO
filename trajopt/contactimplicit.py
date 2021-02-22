@@ -225,7 +225,7 @@ class ContactImplicitDirectTranscription():
         return np.concatenate((fq, fv), axis=0)
     
     # Complementarity Constraint functions for Contact
-    def _normal_distance_constraint(self, z):
+    def _normal_distance(self, state):
         """
         Complementarity constraint between the normal distance to the terrain and the normal reaction force
         
@@ -234,37 +234,28 @@ class ContactImplicitDirectTranscription():
                 z = [state, normal_forces]
         """
         # Check if the decision variables are floats
-        plant, context, _ = self._autodiff_or_float(z)
-        # Split the variables from the decision list
-        x, fN = np.split(z, [self.x.shape[0]])
+        plant, context, _ = self._autodiff_or_float(state)
         # Calculate the normal distance
-        plant.multibody.SetPositionsAndVelocities(context, x)    
-        phi = plant.GetNormalDistances(context)
-        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta) * fN
-        # Return the normal distances, forces, and complementary product
-        return np.concatenate((phi, fN, phi*fN - ub_phi), axis=0)
+        plant.multibody.SetPositionsAndVelocities(context, state)    
+        return plant.GetNormalDistances(context)
 
-    def _sliding_velocity_constraint(self, z):
+    def _sliding_velocity(self, vars):
         """
         Complementarity constraint between the relative sliding velocity and the tangential reaction forces
-
         Arguments:
             The decision variable list:
-                z = [state, friction_forces, velocity_slacks]
+                vars = [state, velocity_slacks]
         """
-        plant, context, _ = self._autodiff_or_float(z)
+        plant, context, _ = self._autodiff_or_float(vars)
         # Split variables from the decision list
-        x, fT, gam = np.split(z, np.cumsum([self.x.shape[0], self.numT]))
+        x, gam = np.split(vars, [self.x.shape[0]])
         # Get the velocity, and convert to qdot
-        _, v = np.split(x, 2)
+        _, v = np.split(x, [plant.multibody.num_positions()])
         plant.multibody.SetPositionsAndVelocities(context, x)
-        dq = plant.multibody.MapVelocityToQDot(context, v)
         # Get the contact Jacobian
         _, Jt = plant.GetContactJacobians(context)
         # Match sliding slacks to sliding velocities
-        r1 = self._e.transpose().dot(gam) + Jt.dot(dq)
-        r2 = fT * r1
-        return np.concatenate((r1, fT, r2), axis=0)
+        return self._e.transpose().dot(gam) + Jt.dot(v)
 
     def _normal_velocity_constraint(self, z):
         """
@@ -287,24 +278,42 @@ class ContactImplicitDirectTranscription():
         vN = Jn.dot(dq)
         return np.concatenate((fN, vN, vN*fN), axis=0)
 
-    def _friction_cone_constraint(self, z):
+    def _normal_velocity(self, z):
         """
-        Complementarity constraint between the relative sliding velocity and the friction cone
+        Complementarity constraint between the normal velocity and the normal reaction forces
 
         Arguments:
             The decision variable list is stored as :
-                z = [state, normal_forces, friction_forces, velocity_slacks]
+                z = [state, normal_forces]
         """
         plant, context, _ = self._autodiff_or_float(z)
+        # Split variables from the decision list
         ind = np.cumsum([self.x.shape[0], self.numN, self.numT])
         x, fN, fT, gam = np.split(z, ind)
+        # Get the velocity, and convert to qdot
+        _, v = np.split(x, 2)
+        plant.multibody.SetPositionsAndVelocities(context, x)
+        dq = plant.multibody.MapVelocityToQDot(context, v)
+        # Get the contact Jacobian
+        Jn, _ = plant.GetContactJacobians(context)
+        vN = Jn.dot(dq)
+        return vN
+
+    def _friction_cone(self, vars):
+        """
+        Complementarity constraint between the relative sliding velocity and the friction cone
+        Arguments:
+            The decision variable list is stored as :
+                vars = [state,normal_forces, friction_forces]
+        """
+        plant, context, _ = self._autodiff_or_float(vars)
+        ind = np.cumsum([self.x.shape[0], self.numN])
+        x, fN, fT = np.split(vars, ind)
         plant.multibody.SetPositionsAndVelocities(context, x)
         mu = plant.GetFrictionCoefficients(context)
         mu = np.diag(mu)
         # Match friction forces to normal forces
-        r1 = mu.dot(fN) - self._e.dot(fT)
-        ub_phi = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta) * gam
-        return np.concatenate((r1, gam, r1*gam - ub_phi), axis=0)
+        return mu.dot(fN) - self._e.dot(fT)
 
     # Joint Limit Constraints
     def _joint_limit(self, z):
