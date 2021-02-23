@@ -74,63 +74,6 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         else:
             print("Undefined chance constraint option")
             quit()
-
-    def _add_decision_variables(self):
-        """
-            adds the decision variables for timesteps, states, controls, reaction forces,
-            and joint limits to the mathematical program, but does not initialize the 
-            values of the decision variables. Store decision variable lists
-
-            addDecisionVariables is called during object construction
-        """
-        super(ChanceConstrainedContactImplicit, self)._add_decision_variables() 
-        # self.lower_bound, self.upper_bound = self._chance_constraint()
-    
-    def _add_normal_distance_constraint(self, n):
-        self.prog.AddConstraint(self._normal_distance_constraint, 
-                        lb=np.concatenate([np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
-                        description="normal_distance")
-
-    def _add_normal_distance_constraint_relaxed(self, n):
-        self.prog.AddConstraint(self._normal_distance_constraint, 
-                        lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        # ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-
-                        vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
-                        description="normal_distance")
-
-    def _add_friction_cone_constraint(self, n):
-        self.prog.AddConstraint(self._friction_cone_constraint, 
-                        lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-                        description="friction_cone")
-
-    def _add_friction_cone_constraint_relaxed(self, n):
-        self.prog.AddConstraint(self._friction_cone_constraint, 
-                        lb = np.concatenate([np.full((self.numN,), self.lower_bound), np.zeros((self.numN,)), -np.full((self.numN,), np.inf)], axis = 0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-
-                        # ub = np.concatenate([np.full((self.numN,), self.upper_bound), np.full((self.numN,), np.inf), np.zeros((self.numN,))], axis = 0),
-                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-                        description="friction_cone")
-    
-    def _add_sliding_velocity_constraint(self, n):
-        self.prog.AddConstraint(self._sliding_velocity_constraint,
-                        lb=np.concatenate([np.zeros((2*self.numT,)), -np.full((self.numT,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numT,), np.inf), np.zeros((self.numT,))], axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[self.numN:,n]), axis=0),
-                        description="sliding_velocity")
-
-    def _add_normal_velocity_constraint(self, n):
-        self.prog.AddConstraint(self._normal_velocity_constraint, 
-                        lb=np.concatenate([np.zeros((2*self.numN,)),-np.full((self.numN,), np.inf)], axis=0),
-                        ub=np.concatenate([np.full((2*self.numN,), np.inf), np.zeros((self.numN,))], axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-                        description="normal_velocity")
     
     def _add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
@@ -142,16 +85,16 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                                                     xdim = self.x.shape[0] + self.numN + self.numT,
                                                     zdim = self.numN,
                                                     slack = 0.)
-        self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
+        if self.cc_option is 1:
+            print("Strict contact constraints")
+            self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
                                                     xdim = self.x.shape[0],
                                                     zdim = self.numN,
                                                     slack = 0.)
-        self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
+            self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
                                                     xdim = self.x.shape[0] + self.numN + self.numT,
                                                     zdim = self.numN,
                                                     slack = 0.)
-        if self.cc_option is 1:
-            print("Strict contact constraints")
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
             self.distance_cstr = ChanceConstrainedComplementarityFcn(self._normal_distance,
@@ -159,8 +102,16 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                                                     xdim = self.x.shape[0],
                                                     zdim = self.numN,
                                                     slack = 0.)
+            self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
+                                                    xdim = self.x.shape[0] + self.numN + self.numT,
+                                                    zdim = self.numN,
+                                                    slack = 0.)
         elif self.cc_option is 3:
             print("Friction Cone constraint relaxed")
+            self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
+                                                    xdim = self.x.shape[0],
+                                                    zdim = self.numN,
+                                                    slack = 0.)
             self.friccone_cstr = ChanceConstrainedComplementarityFcn(self._friction_cone,
                                                     chance_param=self.chance_param,
                                                     xdim = self.x.shape[0] + self.numN + self.numT,
@@ -202,11 +153,11 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                         vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
             # Normal Velocity constraint
-            # self.prog.AddConstraint(self.normalV_cstr, 
-            #             lb=self.normalV_cstr.lower_bound(),
-            #             ub=self.normalV_cstr.upper_bound(),
-            #             vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-            #             description="normal_velocity")
+            self.prog.AddConstraint(self.normalV_cstr, 
+                        lb=self.normalV_cstr.lower_bound(),
+                        ub=self.normalV_cstr.upper_bound(),
+                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+                        description="normal_velocity")
     
     def distanceERMCost(self, z):
         """
@@ -302,8 +253,8 @@ class ChanceConstrainedComplementarityFcn(NonlinearComplementarityFcn):
         x, z = np.split(vars, [self.xdim])
         fcn_val = self.fcn(x)
         prod = self.ub * z 
-
-        return np.concatenate((fcn_val + self.lb, z, fcn_val * z - self.slack - prod), axis=0)
+        # print(prod)
+        return np.concatenate((fcn_val - self.lb, z, fcn_val * z - self.slack - prod), axis=0)
 
     
     def _chance_constraint(self):

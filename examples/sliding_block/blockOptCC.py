@@ -21,9 +21,9 @@ step_size = 0.01
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
 beta, theta = 0.6, 0.6
-# sigmas = [0.01, 0.05, 0.1, 0.3, 1]
+sigmas = [0.01,0.05, 0.1, 0.3, 1]
 # sigmas = [1]
-sigmas = [1e-4, 1e-3, 1e-2, 1e-1, 1]
+# sigmas = [1e-4, 1e-3, 1e-2, 1e-1, 1]
 times = []
 # set friction ERM parameters
 friction_bias = 0.01
@@ -89,9 +89,9 @@ for i in range (iteration):
     prog = trajopt.get_program()
     # Set the SNOPT solver options
     prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-8)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
     solver = SnoptSolver()
     # Solve the problem
     print("Solving trajectory optimization ", i + 1)
@@ -116,10 +116,10 @@ for i in range (iteration):
     control[i, :] = u[0, :]
     friction[i, :] = l[1, :] - l[3,:]
 # save trajectory
-# np.savetxt('data/slidingblock/erm_w_cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/erm_w_cc/control.txt', control, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/erm_w_cc/friction.txt', friction, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/erm_w_cc/t.txt', t, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_w_cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_w_cc/control.txt', control, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_w_cc/friction.txt', friction, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_w_cc/t.txt', t, fmt = '%1.3f')
 # plot trajectory
 plot_CC(horizontal_position, control, friction, t, iteration, sigmas)
 print("Elapsed times: ", times)

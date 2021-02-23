@@ -26,7 +26,7 @@ plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta, sigma = 0.6, 0.6, 0
+beta, theta, sigma = 0.6, 0.6, 0.1
 chance_params = np.array([beta, theta, sigma])
 # set friction ERM parameters
 friction_variance = 0.1
@@ -39,9 +39,9 @@ distance_variance = 0.1
 distance_multiplier = 1e6
 distance_erm_params = np.array([distance_variance, distance_multiplier])
 # set uncertainty option
-erm_option = 3
+erm_option = 1
 # set chance constraint option
-cc_option = 1
+cc_option = 3
 # Create a Contact Implicit Trajectory Optimization
 trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
@@ -95,8 +95,8 @@ prog = trajopt.get_program()
 # Set the SNOPT solver options
 prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6
-prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
 solver = SnoptSolver()
 # trajopt.enable_cost_display(display='figure')
 # Check the problem for bugs in the constraints

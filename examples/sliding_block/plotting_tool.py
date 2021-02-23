@@ -33,7 +33,7 @@ def plot_CC(horizontal_position, control, force, t, iteration, sigmas):
         axs1[2].plot(t, force[i,:], linewidth=1.5)
 
     # axs1[0].set_title('Chance Constraint Variation w/ ERM w/ warmstart')
-    axs1[0].set_title(' ERM w/ warmstart, no cc')
+    axs1[0].set_title(' ERM w/ warmstart, cc')
     axs1[0].set_ylabel('Position')
     axs1[0].legend()
 
