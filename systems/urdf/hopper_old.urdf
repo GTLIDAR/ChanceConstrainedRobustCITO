@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<robot name = "single_legged_hopper">
+    <link name = "xtrans"/>
+    <link name = "ztrans"/>
+    <!-- add link for the base -->
+    <link name="base">
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.016" ixy="0" ixz="0" iyy="0.016" iyz="0.0" izz="0.016"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0.2"/>
+            </geometry> 
+        </visual>
+    </link>
+    <!--does this lock the hopper in x and z axis?-->
+    <joint name="xslide" type="prismatic">
+        <parent link="xtrans"/>
+        <child link="ztrans"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+    <joint name="zslide" type="prismatic">
+        <parent link="ztrans"/>
+        <child link="base"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+    <!-- join between base and leg 1 -->
+    <joint name="base_leg_1" type="revolute">
+        <parent link="base"/>
+        <child link="leg_1"/>
+        <axis xyz="0 1 0"/>
+      	<origin xyz = "0 0 0"/>
+        <limit lower="-0.785" upper="0.785"/>
+    </joint>
+    
+    <!-- add link for leg 1 -->
+    <link name="leg_1">
+        <visual>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.01" length = "1"/>
+            </geometry>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.083" ixy="0.0" ixz="0.0" iyy="0.083" iyz="0.0" izz="0.00005"/>
+        </inertial>
+    </link>
+    <!-- join between leg 1 and leg 2 -->
+    <joint name="leg_1_leg_2" type="revolute">
+        <parent link="leg_1"/>
+        <child link="leg_2"/>
+        <axis xyz="0 1 0"/>
+      	<origin xyz = "0 0 -1"/>
+        <limit lower="-1.5" upper="1.5"/>
+    </joint>
+    
+    <!-- add link for leg 2 -->
+    <link name="leg_2">
+        <visual>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <geometry>
+                <cylinder radius="0.01" length = "1"/>
+            </geometry>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.083" ixy="0.0" ixz="0.0" iyy="0.083" iyz="0.0" izz="0.00005"/>
+        </inertial>
+    </link>
+    <!-- joint between leg 2 and foot -->
+    <joint name="leg_2_foot" type="revolute">
+        <parent link="leg_2"/>
+        <child link="foot"/>
+        <axis xyz="0 1 0"/>
+      	<origin xyz = "0 0 -1"/>
+        <limit lower="-0.785" upper="0.785"/>
+    </joint>
+    <link name="foot">
+        <inertial>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.3"/>
+            <inertia ixx="0.000015" ixy="0.0" ixz="0.0" iyy="0.00225" iyz="0.0" izz="0.00225"/>
+        </inertial>
+        <visual>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <box size="0.3 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <!-- collision point 1 -->
+        <collision>
+            <origin xyz="0.15 0 0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!-- collision point 2 -->
+        <collision>
+        <origin xyz="-0.15 0 0"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!-- single collision point -->
+        <!-- <collision>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <!-- fix the joints together -->
+    <!-- add transmission between base and leg 1 -->
+    <transmission name = "joint1_transmission">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="base_leg_1"/>
+        <actuator name="joint1_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name = "joint2_transmission">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="leg_1_leg_2"/>
+        <actuator name="joint2_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name = "joint3_transmission">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="leg_2_foot"/>
+        <actuator name="joint3_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+</robot>

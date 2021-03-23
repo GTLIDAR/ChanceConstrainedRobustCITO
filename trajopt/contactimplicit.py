@@ -48,6 +48,8 @@ class ContactImplicitDirectTranscription():
         self.mbf_ad = MBF_AD(self.plant_ad.multibody)
         # Create the mathematical program
         self.prog = MathematicalProgram()
+        # Check for floating DOF
+        self._check_floating_dof()
         # Add decision variables to the program
         self._add_decision_variables()
         # Add dynamic constraints 
@@ -57,7 +59,17 @@ class ContactImplicitDirectTranscription():
         # Initialize the timesteps
         self._set_initial_timesteps()
         
-        
+    def _check_floating_dof(self):
+
+        # Get the floating bodies
+        floating = self.plant_f.multibody.GetFloatingBaseBodies()
+        self.floating_pos = []
+        self.floating_vel = []
+        while len(floating) > 0:
+            body = self.plant_f.multibody.get_body(floating.pop())
+            if body.has_quaternion_dofs():
+                self.floating_pos.append(body.floating_positions_start())
+                self.floating_vel.append(body.floating_velocities_start())
 
     def _add_decision_variables(self):
         """

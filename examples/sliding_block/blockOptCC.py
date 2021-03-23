@@ -29,19 +29,13 @@ times = []
 friction_bias = 0.01
 friction_multiplier = 1e6
 # set uncertainty option
-uncertainty_option = 3
+uncertainty_option = 1
 # set chance constraint option
 cc_option = 3
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
-# Add a running cost weights on the controls
-R= 100 * np.ones((1,1))
-b = np.zeros((1,))
-# Add running cost weight on state
-Q = 1*np.diag([1,1,1,1])
-# Add a final cost on the total time
-cost = lambda h: np.sum(h)
+
 # frictionVar = np.array([0.1])
 # friction_variance = 0.03
 # iterations 
@@ -54,6 +48,7 @@ friction = np.zeros([iteration, num_step])
 # initial trajectory
 x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
 u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+
 l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
 t = np.loadtxt('data/slidingblock/warm_start/t.txt')
 # loop through different variance values
@@ -76,22 +71,37 @@ for i in range (iteration):
     # Set all the timesteps to be equal
     trajopt.add_equal_time_constraints()
     # Add control and state costs
+    # Add a running cost weights on the controls
+    if i == 0:
+        R = 100 * np.ones((1,1))
+    else:
+        R= 100 * np.ones((1,1))
+    # R = 10 * np.ones((1,1))
+    b = np.zeros((1,))
+    # Add running cost weight on state
+    Q = 1*np.diag([1,1,1,1])
     trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
     trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
+    # Add a final cost on the total time
+    # cost = lambda h: np.sum(h)
+    # trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
     u_init = u_init.reshape(trajopt.u.shape)
     # Set the initial trajectory guess, might switch out later for a warm start trajectory
-    # u_init = np.zeros(trajopt.u.shape)
-    # x_init = np.zeros(trajopt.x.shape)
-    # for n in range(0, x_init.shape[0]):
-    #     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
-    # l_init = np.zeros(trajopt.l.shape)
+
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
     prog = trajopt.get_program()
+    
     # Set the SNOPT solver options
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e7)
+    
+    if i == 1:
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-8)
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
+    else:
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-8)
+        prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
     solver = SnoptSolver()
     # Solve the problem
     print("Solving trajectory optimization ", i + 1)
@@ -116,11 +126,11 @@ for i in range (iteration):
     control[i, :] = u[0, :]
     friction[i, :] = l[1, :] - l[3,:]
 # save trajectory
-np.savetxt('data/slidingblock/erm_w_cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_w_cc/control.txt', control, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_w_cc/friction.txt', friction, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_w_cc/t.txt', t, fmt = '%1.3f')
+np.savetxt('data/slidingblock/cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
+np.savetxt('data/slidingblock/cc/control.txt', control, fmt = '%1.3f')
+np.savetxt('data/slidingblock/cc/friction.txt', friction, fmt = '%1.3f')
+np.savetxt('data/slidingblock/cc/t.txt', t, fmt = '%1.3f')
 # plot trajectory
-plot_CC(horizontal_position, control, friction, t, iteration, sigmas)
+plot_CC(horizontal_position, control, friction, t, sigmas)
 print("Elapsed times: ", times)
 print('Done!')

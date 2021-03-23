@@ -8,7 +8,6 @@ January 19, 2021
 import numpy as np
 from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, ClippingRange, DepthRange, DepthRenderCamera, RenderCameraCore, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose)
 from pydrake.geometry import DrakeVisualizer
-# from pydrake.geometry import drake_visualizer
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.parsing import Parser
 from pydrake.systems.analysis import Simulator
@@ -132,6 +131,11 @@ def zero_pad_rows(val, totalrows):
         return val
 
 if __name__ == "__main__":
-   file = 'systems/A1/A1_description/urdf/a1_no_collision.urdf'
+   file = "systems/urdf/single_legged_hopper.urdf"
+
+   angle = 0.5 
+   height = np.cos(0.5) * 2
+    # Add initial and final state
+   x0 = np.array([0, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
    vis = Visualizer(file)
    vis.visualize_trajectory()

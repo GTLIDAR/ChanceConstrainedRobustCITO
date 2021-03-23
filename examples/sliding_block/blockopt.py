@@ -11,25 +11,30 @@ October 15, 2020
 import timeit
 import numpy as np
 import matplotlib.pyplot as plt
-# from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
+from pydrake.math import RigidTransform, RollPitchYaw
 import utilities as utils
 from scipy.special import erfinv
 import pickle
 import os
 from tempfile import TemporaryFile
+from pydrake.all import PiecewisePolynomial
+from systems.visualization import Visualizer
+
 # Create the block model with the default flat terrain
-plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
+_file = "systems/urdf/sliding_block.urdf"
+plant = TimeSteppingMultibodyPlant(file= _file)
 plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta, sigma = 0.6, 0.6, 0.1
+beta, theta, sigma = 0.6, 0.6, 0.3
 chance_params = np.array([beta, theta, sigma])
 # set friction ERM parameters
-friction_variance = 0.1
+friction_variance = sigma
 
 friction_bias = 0.01
 friction_multiplier = 1e6
@@ -39,7 +44,7 @@ distance_variance = 0.1
 distance_multiplier = 1e6
 distance_erm_params = np.array([distance_variance, distance_multiplier])
 # set uncertainty option
-erm_option = 1
+erm_option = 3
 # set chance constraint option
 cc_option = 3
 # Create a Contact Implicit Trajectory Optimization
@@ -53,7 +58,11 @@ trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             friction_param= friction_erm_params,
                                             optionERM = erm_option,
                                             optionCC= cc_option)
-
+# trajopt = ContactImplicitDirectTranscription(plant = plant,
+#                                             context = context,
+#                                             num_time_samples = 101,
+#                                             maximum_timestep=0.01,
+#                                             minimum_timestep=0.01)
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
@@ -73,8 +82,8 @@ trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
 Q = 1*np.diag([1,1,1,1])
 trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
-cost = lambda h: np.sum(h)
-trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
+# cost = lambda h: np.sum(h)
+# trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
 
 # Set the initial trajectory guess
 # u_init = np.zeros(trajopt.u.shape)
@@ -89,19 +98,25 @@ u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
 u_init = u_init.reshape(trajopt.u.shape)
 l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
 
+
+# x_init = np.loadtxt('data/slidingblock/erm_cc_0.3/x.txt')
+# u_init = np.loadtxt('data/slidingblock/erm_cc_0.3/u.txt')
+# u_init = u_init.reshape(trajopt.u.shape)
+# l_init = np.loadtxt('data/slidingblock/erm_cc_0.3/l.txt')
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
 # Set the SNOPT solver options
-prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e7)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-10)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
 solver = SnoptSolver()
 # trajopt.enable_cost_display(display='figure')
 # Check the problem for bugs in the constraints
 if not utils.CheckProgram(prog):
     quit()
+
 # Solve the problem
 print("Solving trajectory optimization")
 start = timeit.default_timer()
@@ -121,15 +136,11 @@ u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
 # # Save trajectory 
-# np.savetxt('data/slidingblock/warm_start/x.txt', x, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/warm_start/u.txt', u, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/warm_start/l.txt', l, fmt = '%1.3f')
-# np.savetxt('data/slidingblock/warm_start/t.txt', t, fmt = '%1.3f')
-# np.savetxt('x.txt', x)
-# np.savetxt('u.txt', u)
-# np.savetxt('l.txt', l)
-# np.savetxt('time.txt', t)
-# np.savetxt('l_traj.txt', l, fmt = '%d')
+np.savetxt('data/slidingblock/erm_cc_0.3/x.txt', x, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_cc_0.3/u.txt', u, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_cc_0.3/l.txt', l, fmt = '%1.3f')
+np.savetxt('data/slidingblock/erm_cc_0.3/t.txt', t, fmt = '%1.3f')
+
 # Plot the horizontal trajectory
 fig1, axs1 = plt.subplots(3,1)
 axs1[0].plot(t, x[0,:], linewidth=1.5)
@@ -142,18 +153,7 @@ axs1[1].set_ylabel('Velocity')
 axs1[2].plot(t, u[0,:], linewidth=1.5)
 axs1[2].set_ylabel('Control (N)')
 axs1[2].set_xlabel('Time (s)')
-# Plot the vertical trajectory, as a check
-# fig2, axs2 = plt.subplots(2,1)
-# axs2[0].plot(t, x[1,:], linewidth=1.5)
-# axs2[0].set_ylabel('Position')
-# axs2[0].set_ylim([0, 2])
-# axs2[0].set_title('Vertical Trajectory')
 
-# axs2[1].plot(t,x[3,:], linewidth=1.5)
-# axs2[1].set_ylabel('Velocity')
-# axs2[1].set_ylim([-5, 5])
-# axs2[1].set_xlabel('Time (s)')
-# Plot the reaction forces
 # one collision point
 fig3, axs3 = plt.subplots(3,1)
 axs3[0].plot(t, l[0,:], linewidth=1.5)
@@ -168,24 +168,18 @@ axs3[2].set_ylabel('Friction-y')
 # axs3[2].set_ylim(-0.5, 3)
 axs3[2].set_xlabel('Time (s)')
 
-# fig4 , axs4 = plt.subplots(1,1)
-# # lb_phi = -np.sqrt(2)*trajopt.sigma*erfinv(2* trajopt.beta - 1)
-# lb_phi = np.zeros((len(x[1,:]), )) + trajopt.lower_bound
-# # ub_phi = -np.sqrt(2)*trajopt.sigma*erfinv(1 - 2*trajopt.theta)
-# ub_phi = np.zeros((len(x[1,:]), )) + trajopt.upper_bound
-# x_vals = np.linspace(0,20, num = len(x[1,:]))
-
-# # axs4.plot(l[0,:], x[1,:] - 0.5, 'ro')
-# axs4.plot(l[1,:] - l[3,:], x[1,:] - 0.5, 'ro')
-# axs4.plot(x_vals, lb_phi, 'b-')
-# axs4.plot(x_vals, ub_phi, 'b-')
-# axs4.set_xlabel('friction force')
-# axs4.set_ylabel('normal distance')
-# axs4.set_ylim([-1,1])
-# axs4.set_title('Relaxed constrants')
 # Show the plots
 plt.show()
 print('Done!')
+
+# x = PiecewisePolynomial.FirstOrderHold(t, x)
+# # x = PiecewisePolynomial.FirstOrderHold(t, x[:, 0])
+# vis = Visualizer(_file)
+# body_inds = vis.plant.GetBodyIndices(vis.model_index)
+# base_frame = vis.plant.get_body(body_inds[0]).body_frame()
+# vis.plant.WeldFrames(vis.plant.world_frame(), base_frame, RigidTransform())
+
+# vis.visualize_trajectory(x)
 
 # Save the results
 # file = "data/slidingblock/block_trajopt.pkl"
