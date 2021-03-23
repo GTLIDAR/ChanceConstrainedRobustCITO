@@ -42,8 +42,9 @@ trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             optionCC = cc_option,
                                             optionERM =uncertainty_option)
 
-angle = 0.5 
-height = np.cos(0.5) * 2
+height = 1.5
+angle = np.arccos(0.75/1)
+print(angle)
 # Add initial and final state
 x0 = np.array([0, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
 xf = np.array([4, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
@@ -53,38 +54,39 @@ trajopt.add_state_constraint(knotpoint=300, value=xf)
 # Set all the timesteps to be equal
 trajopt.add_equal_time_constraints()
 # Add a running cost on the controls
-R=  0.01*np.diag([1,1,1])
-b = np.zeros((3,))
+# R=  0.01*np.diag([1,1,1])
+# b = np.zeros((3,))
 
-trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
+# trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
 
-Q = np.diag([1,10,10,100,100,1,1,10,10,10])
-trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
+# Q = np.diag([1,10,10,100,100,1,1,1,1,1])
+# trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
 
 # Set the initial trajectory guess
-# u_init = np.zeros(trajopt.u.shape)
-# x_init = np.zeros(trajopt.x.shape)
+u_init = np.zeros(trajopt.u.shape)
+x_init = np.zeros(trajopt.x.shape)
 # for n in range(0, x_init.shape[0]):
 #     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=num_step)
-# l_init = np.zeros(trajopt.l.shape)
-
+l_init = np.zeros(trajopt.l.shape)
+init_num = 0
 # load initial traj
-x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x.txt')
-u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u.txt')
+x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x{n}.txt'.format(n = init_num))
+u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = init_num))
 u_init = u_init.reshape(trajopt.u.shape)
-l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l.txt')
+l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = init_num))
 t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
     
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
 # Set the SNOPT solver options
-prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
+trajopt.set_slack(1)
 # trajopt.enable_cost_display(display='figure')
 if not utils.CheckProgram(prog):
     quit()
@@ -105,13 +107,16 @@ x = trajopt.reconstruct_state_trajectory(result)
 u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
+joint_force = trajopt.reconstruct_limit_force_trajectory(result).transpose()
 
+plt.plot(t, joint_force)
 plot(x, u, l, t)
-np.savetxt('data/single_legged_hopper/nominal_3/x1.txt', x, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/u1.txt', u, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/l1.txt', l, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/t1.txt', t, fmt = '%1.3f')
-
+save_num = init_num + 1
+np.savetxt('data/single_legged_hopper/nominal_3/x{n}.txt'.format(n = save_num), x, fmt = '%1.3f')
+np.savetxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = save_num), u, fmt = '%1.3f')
+np.savetxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = save_num), l, fmt = '%1.3f')
+np.savetxt('data/single_legged_hopper/nominal_3/t.txt', t, fmt = '%1.3f')
+    
 # x = PiecewisePolynomial.FirstOrderHold(t, x)
 
 # vis = Visualizer(_file)

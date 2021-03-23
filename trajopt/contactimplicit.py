@@ -104,6 +104,7 @@ class ContactImplicitDirectTranscription():
 
         self.Jl = self.plant_ad.joint_limit_jacobian()
         if self.Jl is not None:
+            
             qlow = self.plant_ad.multibody.GetPositionLowerLimits()
             self._liminds = np.isfinite(qlow)
             nJL = sum(self._liminds)
@@ -130,6 +131,7 @@ class ContactImplicitDirectTranscription():
         #   Equality constraints enforcing the dynamics
         if self.Jl is not None:
             # Create the joint limit constraint
+            
             self.joint_limit_cstr = NonlinearComplementarityFcn(self._joint_limit, xdim=self.x.shape[0], zdim=self.jl.shape[0], slack=0)
             for n in range(0, self.num_time_samples-1):
                 # Add timestep constraints
@@ -501,7 +503,7 @@ class ContactImplicitDirectTranscription():
     
     def reconstruct_limit_force_trajectory(self, soln):
         """Returns the joint limit force trajectory from the solution"""
-        if self.jl:
+        if self.Jl is not None:
             return soln.GetSolution(self.jl)
         else:
             return None

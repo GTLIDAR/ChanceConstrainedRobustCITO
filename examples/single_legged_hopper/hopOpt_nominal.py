@@ -20,15 +20,18 @@ plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 num_step = 301
-angle = 0.5 
-height = np.cos(0.5) * 2
+height = 1.5
+angle = np.arccos(0.75/1)
+print(angle)
 # Add initial and final state
 x0 = np.array([0, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
 xf = np.array([4, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
 tolerance = 1e-6
-slack = 10
-for i in range(6):
-    
+slack = 1
+i = 1
+first = False
+while slack is not 0:
+    print('iteration ', i)
     
     # Create a Contact Implicit Trajectory Optimization
     trajopt = ChanceConstrainedContactImplicit(plant=plant,
@@ -43,38 +46,43 @@ for i in range(6):
     print("Current slack is ", slack)
     print("Current tolerance is ", tolerance)
     trajopt.set_slack(slack)
-    slack = slack/10
-    if i is 5:
-        slack = 0
+    
     # Add a final cost on the total time
     cost = lambda h: np.sum(h)
     trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
     # Set the initial trajectory guess
-    if i is 0:
+    if first:
+        first = False
         u_init = np.zeros(trajopt.u.shape)
         x_init = np.zeros(trajopt.x.shape)
-        for n in range(0, x_init.shape[0]):
-            x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=num_step)
+        # for n in range(0, x_init.shape[0]):
+        #     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=num_step)
         l_init = np.zeros(trajopt.l.shape)
-        x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x_s.txt')
-        u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u_s.txt')
-        u_init = u_init.reshape(trajopt.u.shape)
-        l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l_s.txt')
-        t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
-
+        # x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x0.txt')
+        # u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u0.txt')
+        # u_init = u_init.reshape(trajopt.u.shape)
+        # l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l0.txt')
+        # t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
+        # R=  0.01*np.diag([1,1,1])
+        # b = np.zeros((3,))
+        # trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
+        # Q = np.diag([1,10,10,100,100,1,1,1,1,1])
+        # trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
     else: 
         # Add a running cost on the controls and state
         # add costs after the first iteration
         # R=  0.01*np.diag([1,1,1])
         # b = np.zeros((3,))
         # trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
-        # Q = np.diag([1,10,10,100,100,1,1,1,1,1])
+        # Q = np.diag([10,10,10,100,100,1,1,1,1,1])
         # trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
         # load saved traj
-        x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x{n}.txt'.format(n = i-1))
-        u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = i-1))
+        
+        num = i - 1
+        x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x{n}.txt'.format(n = num))
+        u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = num))
         u_init = u_init.reshape(trajopt.u.shape)
-        l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = i-1))
+        l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = num))
         t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
     # Get the final program, with all costs and constraints
@@ -84,7 +92,7 @@ for i in range(6):
     prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", tolerance)
     prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", tolerance)
     # tolerance = tolerance/10
-    if i is 0:
+    if first:
         prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
         prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
     else:
@@ -115,9 +123,11 @@ for i in range(6):
     np.savetxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = i), u, fmt = '%1.3f')
     np.savetxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = i), l, fmt = '%1.3f')
     np.savetxt('data/single_legged_hopper/nominal_3/t.txt'.format(n = i), t, fmt = '%1.3f')
-    
-
-    plot(x, u, l, t)
+    slack = slack/10
+    i += 1
+    if slack < 1e-4:
+        slack = 0
+    # plot(x, u, l, t)
 x = PiecewisePolynomial.FirstOrderHold(t, x)
 vis = Visualizer(_file)
 body_inds = vis.plant.GetBodyIndices(vis.model_index)

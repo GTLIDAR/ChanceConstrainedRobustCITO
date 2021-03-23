@@ -165,9 +165,9 @@ def plot_erm():
     plt.show()
 
 if __name__ == "__main__":
-    x = np.loadtxt('data/single_legged_hopper/nominal_3/x_s.txt')
-    u = np.loadtxt('data/single_legged_hopper/nominal_3/u_s.txt')
-    l = np.loadtxt('data/single_legged_hopper/nominal_3/l_s.txt')
+    x = np.loadtxt('data/single_legged_hopper/nominal_3/x1.txt')
+    u = np.loadtxt('data/single_legged_hopper/nominal_3/u1.txt')
+    l = np.loadtxt('data/single_legged_hopper/nominal_3/l1.txt')
     t = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
     plot(x,u, l, t)
     # sigmas = np.array([0.28, 0.50])
