@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<robot name = "fallingBox">
+    <link name = "xtrans"/>
+    <link name = "ytrans"/>
+    <link name = "ztrans"/>
+    <link name = "xrot"/>
+    <link name = "yrot"/>
+    <link name = "zrot"/>
+    <link name = "box">
+        <visual>
+            <origin xyz = "0 0 0"/>
+            <geometry>
+                <box size="1 1 1"/>
+            </geometry>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+        <!--Put collision points at every corner of the box-->
+        <!--First collision point-->
+        <collision>
+            <origin xyz="0.5 0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Second collision point-->
+        <collision>
+            <origin xyz="-0.5 0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!-- Third collision point-->
+        <collision>
+            <origin xyz="0.5 -0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Fourth collision point-->
+        <collision>
+            <origin xyz="-0.5 -0.5 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Fifth collision point-->
+        <collision>
+            <origin xyz="0.5 0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Sixth collision point-->
+        <collision>
+            <origin xyz="-0.5 0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Seventh collision point-->
+        <collision>
+            <origin xyz="0.5 -0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <!--Eigth collision point-->
+        <collision>
+            <origin xyz="-0.5 -0.5 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+    </link>
+    <!--Add joints between the dummy frames to model the brick-->
+    <joint name="xslide" type="prismatic">
+        <parent link="xtrans"/>
+        <child link="ytrans"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+    <joint name="yslide" type="prismatic">
+        <parent link="ytrans"/>
+        <child link="ztrans"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+    <joint name="zslide" type="prismatic">
+        <parent link="ztrans"/>
+        <child link="xrot"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+    <joint name="xspin" type="revolute">
+        <parent link="xrot"/>
+        <child link="yrot"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+    <joint name="yspin" type="revolute">
+        <parent link="yrot"/>
+        <child link="zrot"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+    <joint name="zspin" type="revolute">
+        <parent link="zrot"/>
+        <child link="box"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+
+</robot>

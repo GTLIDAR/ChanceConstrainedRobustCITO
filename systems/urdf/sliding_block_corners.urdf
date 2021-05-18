@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<robot name = "sliding_block">
+    <link name = "xtrans"/>
+    <link name = "ztrans"/>
+    <link name = "yrot"/>
+    <link name = "box">
+        <visual>
+            <origin xyz = "0 0 0"/>
+            <geometry>
+                <box size="1 1 1"/>
+            </geometry>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+        <!-- Put collision points at four "corners" of the box-->
+        <!--First collision point-->
+        <collision>
+            <origin xyz="-0.5 0.0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin xyz="0.5 0.0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin xyz="0.5 0.0 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+        <collision>
+            <origin xyz="-0.5 0.0 0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+    </link>
+    <!--Add joints between the dummy frames to model the brick-->
+    <joint  name="xslide" type="prismatic">
+        <parent link="xtrans"/>
+        <child link="ztrans"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+    <joint name="zslide" type="prismatic">
+        <parent link="ztrans"/>
+        <child link="yrot"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+    <joint name="yrot" type="revolute">
+        <parent link="ztrans"/>
+        <child link="box"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+    <!--Actuate the x-translation joint-->
+    <transmission name = "xslide_transmission">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="xslide"/>
+        <actuator name="xslide_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+</robot>

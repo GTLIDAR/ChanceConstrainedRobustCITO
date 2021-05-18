@@ -1,0 +1,18 @@
+{
+    "name": "pyDrake",
+    "build": {"dockerfile": "Dockerfile"},
+    "settings":{
+        "git.path": "/usr/bin/git"
+    },
+    "forwardPorts": [3000],
+    "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "smilerobotics.urdf"
+    ],
+    "containerEnv":{
+        // "DISPLAY": "172.16.6.221:0.0"
+        "DISPLAY": "172.29.160.1:0.0"
+
+    }
+}
