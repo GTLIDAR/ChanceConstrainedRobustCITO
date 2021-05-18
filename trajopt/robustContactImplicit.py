@@ -80,14 +80,6 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
     def _add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
-        # self.sliding_cstr = NonlinearComplementarityFcn(self._sliding_velocity,
-        #                                             xdim = self.x.shape[0] + self.numN,
-        #                                             zdim = self.numT,
-        #                                             slack = 0.)
-        # self.normalV_cstr = NonlinearComplementarityFcn(self._normal_velocity,
-        #                                             xdim = self.x.shape[0] + self.numN + self.numT,
-        #                                             zdim = self.numN,
-        #                                             slack = 0.)
         numN = self._normal_forces.shape[0]
         numT = self._tangent_forces.shape[0]
         factory = ComplementarityFactory(self.options.ncc_implementation, self.options.slacktype)
@@ -210,11 +202,6 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                         description="normal_distance")
 
     def _add_sliding_velocity_constraint(self, n):
-        # self.prog.AddConstraint(self.sliding_cstr,
-        #                 lb=self.sliding_cstr.lower_bound(),
-        #                 ub=self.sliding_cstr.upper_bound(),
-        #                 vars=np.concatenate((self.x[:,n], self.l[self.numN+self.numT:,n], self.l[self.numN:self.numN+self.numT,n]), axis=0),
-        #                 description="sliding_velocity")
         self.prog.AddConstraint(self.sliding_cstr,
                         lb=self.sliding_cstr.lower_bound(),
                         ub=self.sliding_cstr.upper_bound(),
