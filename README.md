@@ -12,4 +12,12 @@ This respository is an implementation of the chance constrained robust contact-i
 * Authors: John Z. Zhang, Luke Drnach, and Ye Zhao
 * Affiliation: [The LIDAR Lab](http://lab-idar.gatech.edu/), Georgia Institute of Technology
 
-This code was tested in Python 3.6.9 and Docker container release of [Drake](https://drake.mit.edu/docker.html). 
+## Installation and Running the Code
+Clone the repository: `git clone https://github.com/GTLIDAR/ChanceConstrainedRobustCITO.git`
+
+Install the Docker container release of Drake with VSCode following instructions [here](https://drake.mit.edu/docker.html). Every scipt is run in the container. 
+
+To run the sliding block example, run file: `./examples/sliding_block/blockOpt.py`
+
+To run the single legged hopper example, run file: `./examples/single_legged_hopper/HopperOptNominal.py`
+
