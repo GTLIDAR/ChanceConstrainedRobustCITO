@@ -74,9 +74,7 @@ trajopt.add_equal_time_constraints()
 # Add a running cost on the controls
 R= 10 * np.ones((1,1))
 b = np.zeros((1,))
-
 trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
-
 Q = 1*np.diag([1,1,1,1])
 trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
 # Add a final cost on the total time
@@ -89,7 +87,6 @@ x_init = np.zeros(trajopt.x.shape)
 for n in range(0, x_init.shape[0]):
     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
 l_init = np.zeros(trajopt.l.shape)
-
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
@@ -160,12 +157,10 @@ plt.show()
 print('Done!')
 
 x = PiecewisePolynomial.FirstOrderHold(t, x)
-# x = PiecewisePolynomial.FirstOrderHold(t, x[:, 0])
 vis = Visualizer(_file)
 body_inds = vis.plant.GetBodyIndices(vis.model_index)
 base_frame = vis.plant.get_body(body_inds[0]).body_frame()
 vis.plant.WeldFrames(vis.plant.world_frame(), base_frame, RigidTransform())
-
 vis.visualize_trajectory(x)
 
 # Save the results
