@@ -54,8 +54,8 @@ cc_option = 1
 trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
                                             num_time_samples=101,
-                                            maximum_timestep=0.03,
-                                            minimum_timestep=0.03,
+                                            maximum_timestep=0.01,
+                                            minimum_timestep=0.01,
                                             chance_param= chance_params,
                                             distance_param = distance_erm_params,
                                             friction_param= friction_erm_params,
@@ -90,17 +90,6 @@ for n in range(0, x_init.shape[0]):
     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
 l_init = np.zeros(trajopt.l.shape)
 
-# load initial trajectories
-# x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
-# u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
-# u_init = u_init.reshape(trajopt.u.shape)
-# l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
-
-
-# x_init = np.loadtxt('data/slidingblock/erm_cc_0.3/x.txt')
-# u_init = np.loadtxt('data/slidingblock/erm_cc_0.3/u.txt')
-# u_init = u_init.reshape(trajopt.u.shape)
-# l_init = np.loadtxt('data/slidingblock/erm_cc_0.3/l.txt')
 trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()

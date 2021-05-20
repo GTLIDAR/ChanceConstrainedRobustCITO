@@ -1,4 +1,4 @@
-# ChanceConstrainedCITO
+# ChanceConstrainedRobustCITO
 Repository for Chance-Constrained Robust Contact-Implicit Trajectory Optimization.
 This is an extension from our previous work on [RobustTO](http://lab-idar.gatech.edu/wp-content/uploads/Publications/robust-traj-opt-2021.pdf), implemented [here](https://github.com/GTLIDAR/RobustContactERM).
 
