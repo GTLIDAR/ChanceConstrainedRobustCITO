@@ -15,7 +15,7 @@ This respository is an implementation of the chance constrained robust contact-i
 ## Installation and Running the Code
 Clone the repository: `git clone https://github.com/GTLIDAR/ChanceConstrainedRobustCITO.git`
 
-Install the Docker container release of Drake with VSCode following instructions [here](https://drake.mit.edu/docker.html). Every scipt is run in the container. 
+Install the Docker container release of Drake with VSCode following instructions [here](https://drake.mit.edu/docker.html). Every script is run in the container. 
 
 To run the sliding block example, run file: `./examples/sliding_block/blockOpt.py`
 
