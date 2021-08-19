@@ -89,17 +89,17 @@ trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
 # trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
 
 # Set the initial trajectory guess
-u_init = np.zeros(trajopt.u.shape)
-x_init = np.zeros(trajopt.x.shape)
-for n in range(0, x_init.shape[0]):
-    x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
-l_init = np.zeros(trajopt.l.shape)
+# u_init = np.zeros(trajopt.u.shape)
+# x_init = np.zeros(trajopt.x.shape)
+# for n in range(0, x_init.shape[0]):
+#     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
+# l_init = np.zeros(trajopt.l.shape)
 
 # load initial trajectories
-# x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
-# u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
-# u_init = u_init.reshape(trajopt.u.shape)
-# l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
+x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+u_init = u_init.reshape(trajopt.u.shape)
+l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
 
 
 # x_init = np.loadtxt('data/slidingblock/erm_cc_0.3/x.txt')
@@ -113,7 +113,7 @@ prog = trajopt.get_program()
 prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
 prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
 solver = SnoptSolver()
 # trajopt.enable_cost_display(display='figure')
 # Check the problem for bugs in the constraints

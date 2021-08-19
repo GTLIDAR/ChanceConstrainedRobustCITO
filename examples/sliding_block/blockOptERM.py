@@ -93,7 +93,13 @@ for i in range (iteration):
     for n in range(0, x_init.shape[0]):
         x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
     l_init = np.zeros(trajopt.l.shape)
+    # x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+    # u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+    # u_init = u_init.reshape(trajopt.u.shape)
+    # l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
+
+    
     prog = trajopt.get_program()
     # Set the SNOPT solver options
     prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
