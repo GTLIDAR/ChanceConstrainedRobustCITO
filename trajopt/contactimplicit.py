@@ -280,10 +280,10 @@ class ContactImplicitDirectTranscription():
         if self.Jl is not None:
             fT, jl = np.split(fT, [self._tangent_forces.shape[0]])
             # jl = jl *h
-            forces += self.Jl.dot(jl) * h*20
+            forces += self.Jl.dot(jl) * h
         # Contact reaction forces
         Jn, Jt = plant.GetContactJacobians(context)
-        forces += Jn.transpose().dot(fN)*h*20 + Jt.transpose().dot(fT)*h*20
+        forces += Jn.transpose().dot(fN)*h + Jt.transpose().dot(fT)*h
         # Do inverse dynamics
         fv = M.dot(v2 - v1) - forces
         # Calc position residual from velocity
