@@ -67,7 +67,7 @@ def setup_nominal_block_trajopt():
     # Create a Contact Implicit Trajectory Optimization
     trajopt = ContactImplicitDirectTranscription(plant=plant,
                                                 context=context,
-                                                options=options,
+                                                # options=options,
                                                 num_time_samples=101,
                                                 maximum_timestep=0.01,
                                                 minimum_timestep=0.01,
