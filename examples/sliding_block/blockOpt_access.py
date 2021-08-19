@@ -12,6 +12,7 @@ import timeit
 import numpy as np
 import matplotlib.pyplot as plt
 from trajopt.contactimplicit import ContactImplicitDirectTranscription, OptimizationOptions
+from trajopt.robustContactImplicit import OptimizationOptions, ChanceConstrainedContactImplicit
 from trajopt.constraints import NCCImplementation, NCCSlackType
 from systems.block.block import Block
 from pydrake.solvers.snopt import SnoptSolver
@@ -19,7 +20,8 @@ import utilities as utils
 #TODO: Check if the ElasticWeight parameter is available in this version of Drake
 
 def run_block_trajopt():
-    trajopt = setup_nominal_block_trajopt()
+    # trajopt = setup_nominal_block_trajopt()
+    trajopt = setup_robust_block_trajopt()
     # Set the boundary constraints
     x0, xf = create_boundary_constraints()
     set_boundary_constraints(trajopt, x0, xf)
@@ -54,6 +56,29 @@ def run_block_trajopt():
     # # Save
     # save_block_trajectories(soln, 'block_trajopt_tight.pkl')
 
+def setup_robust_block_trajopt():
+    """ Create block plant and robust contact-implicit trajectory optimization"""
+    plant = Block()
+    plant.Finalize()
+    # Get the default context
+    context = plant.multibody.CreateDefaultContext()
+    # set up optimization options
+    options = setup_options()
+    # Create a Contact Implicit Trajectory Optimization
+    trajopt = ChanceConstrainedContactImplicit(plant=plant,
+                                            context=context,
+                                            num_time_samples=101,
+                                            maximum_timestep=0.01,
+                                            minimum_timestep=0.01,
+                                            # chance_param= chance_params,
+                                            # distance_param = distance_erm_params,
+                                            # friction_param= friction_erm_params,
+                                            # optionERM = uncertainty_option,
+                                            # optionCC = cc_option,
+                                            options=options
+                                            )
+    return trajopt
+
 def setup_nominal_block_trajopt():
     """ Create block plant and contact-implicit trajectory optimization"""
     plant = Block()
@@ -61,32 +86,24 @@ def setup_nominal_block_trajopt():
     # Get the default context
     context = plant.multibody.CreateDefaultContext()
     # set up optimization options
-    options = OptimizationOptions()
-    options.ncc_implementation = NCCImplementation.LINEAR_EQUALITY
-    options.slacktype = NCCSlackType.CONSTANT_SLACK
+    options = setup_options()
     # Create a Contact Implicit Trajectory Optimization
     trajopt = ContactImplicitDirectTranscription(plant=plant,
                                                 context=context,
-                                                # options=options,
+                                                options=options,
                                                 num_time_samples=101,
                                                 maximum_timestep=0.01,
-                                                minimum_timestep=0.01,
-                                                )
-    
+                                                minimum_timestep=0.01)
     return trajopt
 
 def setup_options():
     """Create options object for contact-implicit trajectory optimization"""
     options = OptimizationOptions()
-    options.ncc_implementation = NCCImplementation.LINEAR_EQUALITY
+    # options.ncc_implementation = NCCImplementation.LINEAR_EQUALITY
+    options.ncc_implementation = NCCImplementation.NONLINEAR
     options.slacktype = NCCSlackType.CONSTANT_SLACK
     return options
-# def setup_nominal_block_trajopt():
-#     """ Create block plant and robust contact-implicit trajectory optimization""""
-#     # plant = Block()
-#     # plant.Finalize()
 
-#     pass
 def create_boundary_constraints():
     x0 = np.array([0., 0.5, 0., 0.])
     xf = np.array([5., 0.5, 0., 0.])

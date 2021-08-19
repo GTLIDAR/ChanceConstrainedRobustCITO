@@ -1,19 +1,10 @@
 import numpy as np 
-import sys
 from scipy.special import erfinv
-# from scipy.special import erf
-# from mpmath import *
-from scipy.stats import norm
-from pydrake.all import MathematicalProgram
-from matplotlib import mlab
-from pydrake.autodiffutils import AutoDiffXd
-from pydrake.multibody.tree import MultibodyForces_
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from trajopt.constraints import NonlinearComplementarityFcn
-import warnings
-import math
 from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceConstrainedComplementarityLINEAR
 from trajopt.contactimplicit import OptimizationOptions, DecisionVariableList
+
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     '''
     This class implements chance constrained 
@@ -23,7 +14,6 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
     def __init__(self, plant, context, 
                         num_time_samples = 101,
-                        # duration = 1, 
                         minimum_timestep = 0.01, 
                         maximum_timestep = 0.01, 
                         chance_param = [0.5, 0.5, 0], 
@@ -31,7 +21,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                         friction_param = [0.1, 0.01, 1], 
                         optionERM = 1, 
                         optionCC = 1,
-                        options = None):
+                        options = OptimizationOptions):
         # add chance constraint variables
         # self.chance_param = chance_param
         self.beta = chance_param[0]
@@ -130,23 +120,23 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             if self.erm_option is 1:
                 print("no uncertainty, no cc relaxation")
                 for n in range(0, self.num_time_samples):
-                    self._add_friction_cone_constraint(n)
                     self._add_normal_distance_constraint(n)
                     self._add_sliding_velocity_constraint(n) 
+                    self._add_friction_cone_constraint(n)
                     # self._add_normal_velocity_constraint(n)
             if self.erm_option is 2:
                 print("uncertainty from normal distance, no cc relaxation")
                 for n in range(0, self.num_time_samples):
+                    self._add_sliding_velocity_constraint(n)
                     self._add_friction_cone_constraint(n)
-                    self._add_sliding_velocity_constraint(n)  
             if self.erm_option is 3:
                 print("uncertainty from friction cone, no cc relaxation")
                 for n in range(0, self.num_time_samples):
                     self._add_normal_distance_constraint(n)
                     self._add_sliding_velocity_constraint(n) 
-            if self.erm_option is 4:
-                for n in range(0, self.num_time_samples):
-                    self._add_sliding_velocity_constraint(n)  
+            # if self.erm_option is 4:
+            #     for n in range(0, self.num_time_samples):
+            #         self._add_sliding_velocity_constraint(n)  
 
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
@@ -223,11 +213,11 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         if self.options.ncc_implementation == NCCImplementation.COST:
             for n in range(0, self.num_time_samples-1):
                 # Normal distance cost
-                self.prog.AddCost(self.distance_cstr.product_cost, vars=distance_vars.get(n), description = "DistanceProductCost")
+                self.prog.AddCost(self.distance_cstr.product_cost, vars=self.distance_vars.get(n), description = "DistanceProductCost")
                 # Sliding velocity cost
-                self.prog.AddCost(self.sliding_cstr.product_cost, vars=sliding_vars.get(n), description = "VelocityProductCost")
+                self.prog.AddCost(self.sliding_cstr.product_cost, vars=self.sliding_vars.get(n), description = "VelocityProductCost")
                 # Friction cone cost
-                self.prog.AddCost(self.friccone_cstr.product_cost, vars=friccone_vars.get(n), description = "FricConeProductCost")
+                self.prog.AddCost(self.friccone_cstr.product_cost, vars=self.friccone_vars.get(n), description = "FricConeProductCost")
             self.slack_cost = []
         elif self.options.slacktype == NCCSlackType.VARIABLE_SLACK:
             a = np.ones(self.slacks.shape[1],)
@@ -270,6 +260,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                         ub=self.friccone_cstr.upper_bound(),
                         vars=self.friccone_vars.get(n),
                         description="friction_cone")
+        
     # def _add_normal_velocity_constraint(self, n):
     #     self.prog.AddConstraint(self.normalV_cstr, 
     #                     lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),

@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 # from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
-from systems.timestepping import TimeSteppingMultibodyPlant
-from pydrake.solvers.snopt import SnoptSolver
+from systems.timestepping import TimeSteppingultibodyPlant
+from pydrake.solvers.snopt import SnoptSolverM
 import utilities as utils
 from scipy.special import erfinv
 import pickle
