@@ -21,8 +21,8 @@ step_size = 0.01
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
 beta, theta = 0.6, 0.6
-sigmas = [0.01,0.05, 0.1, 0.3, 1]
-# sigmas = [1]
+# sigmas = [0.01,0.05, 0.1, 0.3, 1]
+sigmas = [0.01]
 # sigmas = [1e-4, 1e-3, 1e-2, 1e-1, 1]
 times = []
 # set friction ERM parameters
@@ -31,7 +31,7 @@ friction_multiplier = 1e6
 # set uncertainty option
 uncertainty_option = 1
 # set chance constraint option
-cc_option = 3
+cc_option = 1
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
@@ -121,15 +121,19 @@ for i in range (iteration):
     u = trajopt.reconstruct_input_trajectory(result)
     l = trajopt.reconstruct_reaction_force_trajectory(result)
     t = trajopt.get_solution_times(result)
-    horizontal_position[i, :] = x[0, :]
-    horizontal_velocity[i, :] = x[2, :]
-    control[i, :] = u[0, :]
-    friction[i, :] = l[1, :] - l[3,:]
+    t, xtraj = utils.GetKnotsFromTrajectory(x)
+    fig1, axs1 = plt.subplots(3,1)
+    axs1[0].plot(t,xtraj[0])
+    plt.show()
+    # horizontal_position[i, :] = x[0, :]
+    # horizontal_velocity[i, :] = x[2, :]
+    # control[i, :] = u[0, :]
+    # friction[i, :] = l[1, :] - l[3,:]
 # save trajectory
-np.savetxt('data/slidingblock/cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
-np.savetxt('data/slidingblock/cc/control.txt', control, fmt = '%1.3f')
-np.savetxt('data/slidingblock/cc/friction.txt', friction, fmt = '%1.3f')
-np.savetxt('data/slidingblock/cc/t.txt', t, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/cc/horizontal_position.txt', horizontal_position, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/cc/control.txt', control, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/cc/friction.txt', friction, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/cc/t.txt', t, fmt = '%1.3f')
 # plot trajectory
 plot_CC(horizontal_position, control, friction, t, sigmas)
 print("Elapsed times: ", times)

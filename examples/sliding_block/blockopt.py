@@ -27,6 +27,9 @@ from systems.visualization import Visualizer
 # Create the block model with the default flat terrain
 _file = "systems/urdf/sliding_block.urdf"
 plant = TimeSteppingMultibodyPlant(file= _file)
+body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
 plant.Finalize()
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
@@ -46,13 +49,13 @@ distance_erm_params = np.array([distance_variance, distance_multiplier])
 # set uncertainty option
 erm_option = 3
 # set chance constraint option
-cc_option = 3
+cc_option = 1
 # Create a Contact Implicit Trajectory Optimization
 trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
                                             num_time_samples=101,
-                                            maximum_timestep=0.01,
-                                            minimum_timestep=0.01,
+                                            maximum_timestep=0.03,
+                                            minimum_timestep=0.03,
                                             chance_param= chance_params,
                                             distance_param = distance_erm_params,
                                             friction_param= friction_erm_params,
@@ -74,7 +77,7 @@ trajopt.add_equal_time_constraints()
 # print(trajopt.uncertainty_option)
 
 # Add a running cost on the controls
-R= 100 * np.ones((1,1))
+R= 10 * np.ones((1,1))
 b = np.zeros((1,))
 
 trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
@@ -86,17 +89,17 @@ trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
 # trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
 
 # Set the initial trajectory guess
-# u_init = np.zeros(trajopt.u.shape)
-# x_init = np.zeros(trajopt.x.shape)
-# for n in range(0, x_init.shape[0]):
-#     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
-# l_init = np.zeros(trajopt.l.shape)
+u_init = np.zeros(trajopt.u.shape)
+x_init = np.zeros(trajopt.x.shape)
+for n in range(0, x_init.shape[0]):
+    x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
+l_init = np.zeros(trajopt.l.shape)
 
 # load initial trajectories
-x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
-u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
-u_init = u_init.reshape(trajopt.u.shape)
-l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
+# x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+# u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+# u_init = u_init.reshape(trajopt.u.shape)
+# l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
 
 
 # x_init = np.loadtxt('data/slidingblock/erm_cc_0.3/x.txt')
@@ -107,10 +110,10 @@ trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 # Get the final program, with all costs and constraints
 prog = trajopt.get_program()
 # Set the SNOPT solver options
-prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e7)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-10)
-prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
+prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
 solver = SnoptSolver()
 # trajopt.enable_cost_display(display='figure')
 # Check the problem for bugs in the constraints
@@ -136,10 +139,10 @@ u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
 # # Save trajectory 
-np.savetxt('data/slidingblock/erm_cc_0.3/x.txt', x, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_cc_0.3/u.txt', u, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_cc_0.3/l.txt', l, fmt = '%1.3f')
-np.savetxt('data/slidingblock/erm_cc_0.3/t.txt', t, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/erm_cc_0.3/x.txt', x, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/erm_cc_0.3/u.txt', u, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/erm_cc_0.3/l.txt', l, fmt = '%1.3f')
+# np.savetxt('data/slidingblock/erm_cc_0.3/t.txt', t, fmt = '%1.3f')
 
 # Plot the horizontal trajectory
 fig1, axs1 = plt.subplots(3,1)
@@ -172,14 +175,14 @@ axs3[2].set_xlabel('Time (s)')
 plt.show()
 print('Done!')
 
-# x = PiecewisePolynomial.FirstOrderHold(t, x)
-# # x = PiecewisePolynomial.FirstOrderHold(t, x[:, 0])
-# vis = Visualizer(_file)
-# body_inds = vis.plant.GetBodyIndices(vis.model_index)
-# base_frame = vis.plant.get_body(body_inds[0]).body_frame()
-# vis.plant.WeldFrames(vis.plant.world_frame(), base_frame, RigidTransform())
+x = PiecewisePolynomial.FirstOrderHold(t, x)
+# x = PiecewisePolynomial.FirstOrderHold(t, x[:, 0])
+vis = Visualizer(_file)
+body_inds = vis.plant.GetBodyIndices(vis.model_index)
+base_frame = vis.plant.get_body(body_inds[0]).body_frame()
+vis.plant.WeldFrames(vis.plant.world_frame(), base_frame, RigidTransform())
 
-# vis.visualize_trajectory(x)
+vis.visualize_trajectory(x)
 
 # Save the results
 # file = "data/slidingblock/block_trajopt.pkl"

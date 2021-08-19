@@ -8,10 +8,12 @@ from pydrake.all import MathematicalProgram
 from matplotlib import mlab
 from pydrake.autodiffutils import AutoDiffXd
 from pydrake.multibody.tree import MultibodyForces_
-from trajopt.contactimplicit import ContactImplicitDirectTranscription, NonlinearComplementarityFcn
+from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from trajopt.constraints import NonlinearComplementarityFcn
 import warnings
 import math
-
+from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceConstrainedComplementarityLINEAR
+from trajopt.contactimplicit import OptimizationOptions, DecisionVariableList
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     '''
     This class implements chance constrained 
@@ -20,14 +22,16 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     '''
 
     def __init__(self, plant, context, 
-                        num_time_samples = 101, 
+                        num_time_samples = 101,
+                        # duration = 1, 
                         minimum_timestep = 0.01, 
                         maximum_timestep = 0.01, 
                         chance_param = [0.5, 0.5, 0], 
                         distance_param = [0.1, 1], 
                         friction_param = [0.1, 0.01, 1], 
                         optionERM = 1, 
-                        optionCC = 1):
+                        optionCC = 1,
+                        options = None):
         # add chance constraint variables
         # self.chance_param = chance_param
         self.beta = chance_param[0]
@@ -47,7 +51,10 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         #   option 3: chance constraint relaxation for friction cone
         #   option 4: chance constraint relaxation for normal distance and friction cone
         self.cc_option = optionCC
-        super(ChanceConstrainedContactImplicit, self).__init__(plant, context, num_time_samples, minimum_timestep, maximum_timestep)
+        # minimum_timestep = duration/(num_time_samples - 1)
+        # maximum_timestep = minimum_timestep
+        # print(minimum_timestep)
+        super(ChanceConstrainedContactImplicit, self).__init__(plant, context, num_time_samples, minimum_timestep, maximum_timestep, options)
         # Uncertainty options:
         #   option 1: no uncertainty
         #   option 2: uncertainty from normal distance
@@ -75,31 +82,51 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             print("Undefined chance constraint option")
             quit()
 
-    def set_slack(self, val):
-        self.distance_cstr.slack = val
-        self.sliding_cstr.slack = val
-        self.friccone_cstr.slack = val
+    # def set_slack(self, val):
+    #     self.distance_cstr.slack = val
+    #     self.sliding_cstr.slack = val
+    #     self.friccone_cstr.slack = val
 
     def _add_contact_constraints(self):
         """ Add complementarity constraints for contact to the optimization problem"""
-        self.sliding_cstr = NonlinearComplementarityFcn(self._sliding_velocity,
-                                                    xdim = self.x.shape[0] + self.numN,
-                                                    zdim = self.numT,
-                                                    slack = 0.)
-        self.normalV_cstr = NonlinearComplementarityFcn(self._normal_velocity,
-                                                    xdim = self.x.shape[0] + self.numN + self.numT,
-                                                    zdim = self.numN,
-                                                    slack = 0.)
+        # self.sliding_cstr = NonlinearComplementarityFcn(self._sliding_velocity,
+        #                                             xdim = self.x.shape[0] + self.numN,
+        #                                             zdim = self.numT,
+        #                                             slack = 0.)
+        # self.normalV_cstr = NonlinearComplementarityFcn(self._normal_velocity,
+        #                                             xdim = self.x.shape[0] + self.numN + self.numT,
+        #                                             zdim = self.numN,
+        #                                             slack = 0.)
+        numN = self._normal_forces.shape[0]
+        numT = self._tangent_forces.shape[0]
+        factory = ComplementarityFactory(self.options.ncc_implementation, self.options.slacktype)
+        self.sliding_cstr = factory.create(self._sliding_velocity, xdim = self.x.shape[0] + numN, zdim=numT)
+        # Determine the variables according to implementation and slacktype options
+        self.distance_vars = DecisionVariableList([self.x, self._normal_forces])
+        self.sliding_vars = DecisionVariableList([self.x, self._sliding_vel, self._tangent_forces])
+        self.friccone_vars = DecisionVariableList([self.x, self._normal_forces, self._tangent_forces, self._sliding_vel])
+        # Check and add slack variables
+        if self.options.ncc_implementation == NCCImplementation.LINEAR_EQUALITY:
+            self.distance_vars.add(self.slacks[0:numN,:])
+            self.sliding_vars.add(self.slacks[numN:numN+numT,:])
+            self.friccone_vars.add(self.slacks[numN+numT:2*numN+numT,:])
+        if self.options.ncc_implementation != NCCImplementation.COST and self.options.slacktype == NCCSlackType.VARIABLE_SLACK:
+            self.distance_vars.add(self.slacks[-1,:])
+            self.sliding_vars.add(self.slacks[-1,:])
+            self.friccone_vars.add(self.slacks[-1,:])
+
         if self.cc_option is 1:
             # print("Strict contact constraints")
-            self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
-                                                    xdim = self.x.shape[0],
-                                                    zdim = self.numN,
-                                                    slack = 0.)
-            self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
-                                                    xdim = self.x.shape[0] + self.numN + self.numT,
-                                                    zdim = self.numN,
-                                                    slack = 0.)
+            # self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
+            #                                         xdim = self.x.shape[0],
+            #                                         zdim = self.numN,
+            #                                         slack = 0.)
+            # self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
+            #                                         xdim = self.x.shape[0] + self.numN + self.numT,
+            #                                         zdim = self.numN,
+            #                                         slack = 0.)
+            self.distance_cstr = factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN)
+            self.friccone_cstr = factory.create(self._friction_cone, self.x.shape[0] + numN + numT, numN)
             if self.erm_option is 1:
                 print("no uncertainty, no cc relaxation")
                 for n in range(0, self.num_time_samples):
@@ -123,11 +150,13 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
-            self.distance_cstr = self._normal_distance_cc
-            self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
-                                                    xdim = self.x.shape[0] + self.numN + self.numT,
-                                                    zdim = self.numN,
-                                                    slack = 0.)    
+            # self.distance_cstr = self._normal_distance_cc
+            self.distance_cstr = ChanceConstrainedComplementarityLINEAR(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
+            self.friccone_cstr = factory.create(self._friction_cone, self.x.shape[0] + numN + numT, numN)
+            # self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
+            #                                         xdim = self.x.shape[0] + self.numN + self.numT,
+            #                                         zdim = self.numN,
+            #                                         slack = 0.)    
             if self.erm_option is 1:
                 print("no uncertainty, friction cone cc relaxation")
                 for n in range(0, self.num_time_samples):
@@ -190,35 +219,63 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         #         self._add_normal_distance_constraint(n)
         #         self._add_sliding_velocity_constraint(n)
 
-        
+        # Check for the case of cost-relaxed complementarity
+        if self.options.ncc_implementation == NCCImplementation.COST:
+            for n in range(0, self.num_time_samples-1):
+                # Normal distance cost
+                self.prog.AddCost(self.distance_cstr.product_cost, vars=distance_vars.get(n), description = "DistanceProductCost")
+                # Sliding velocity cost
+                self.prog.AddCost(self.sliding_cstr.product_cost, vars=sliding_vars.get(n), description = "VelocityProductCost")
+                # Friction cone cost
+                self.prog.AddCost(self.friccone_cstr.product_cost, vars=friccone_vars.get(n), description = "FricConeProductCost")
+            self.slack_cost = []
+        elif self.options.slacktype == NCCSlackType.VARIABLE_SLACK:
+            a = np.ones(self.slacks.shape[1],)
+            self.slack_cost = self.prog.AddLinearCost(a=a, vars=self.slacks[-1,:], description="SlackCost")
+        else:
+            self.slack_cost = []
     
     def _add_normal_distance_constraint(self, n):
+        # self.prog.AddConstraint(self.distance_cstr, 
+        #                 lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
+        #                 ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
+        #                 vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
+        #                 description="normal_distance")
         self.prog.AddConstraint(self.distance_cstr, 
-                        lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
-                        ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[0:self.numN,n]), axis=0),
+                        lb=self.distance_cstr.lower_bound(),
+                        ub=self.distance_cstr.upper_bound(),
+                        vars=self.distance_vars.get(n),
                         description="normal_distance")
 
     def _add_sliding_velocity_constraint(self, n):
+        # self.prog.AddConstraint(self.sliding_cstr,
+        #                 lb=self.sliding_cstr.lower_bound(),
+        #                 ub=self.sliding_cstr.upper_bound(),
+        #                 vars=np.concatenate((self.x[:,n], self.l[self.numN+self.numT:,n], self.l[self.numN:self.numN+self.numT,n]), axis=0),
+        #                 description="sliding_velocity")
         self.prog.AddConstraint(self.sliding_cstr,
                         lb=self.sliding_cstr.lower_bound(),
                         ub=self.sliding_cstr.upper_bound(),
-                        vars=np.concatenate((self.x[:,n], self.l[self.numN+self.numT:,n], self.l[self.numN:self.numN+self.numT,n]), axis=0),
+                        vars=self.sliding_vars.get(n),
                         description="sliding_velocity")
 
     def _add_friction_cone_constraint(self, n):
+        # self.prog.AddConstraint(self.friccone_cstr, 
+        #                 lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
+        #                 ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
+        #                 vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+        #                 description="friction_cone")
         self.prog.AddConstraint(self.friccone_cstr, 
-                        lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
-                        ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+                        lb=self.friccone_cstr.lower_bound(),
+                        ub=self.friccone_cstr.upper_bound(),
+                        vars=self.friccone_vars.get(n),
                         description="friction_cone")
-
-    def _add_normal_velocity_constraint(self, n):
-        self.prog.AddConstraint(self.normalV_cstr, 
-                        lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
-                        ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
-                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-                        description="friction_cone")
+    # def _add_normal_velocity_constraint(self, n):
+    #     self.prog.AddConstraint(self.normalV_cstr, 
+    #                     lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
+    #                     ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
+    #                     vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
+    #                     description="friction_cone")
 
     def _friction_cone_cc(self, vars):
         """
@@ -272,13 +329,14 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
         Arguments:
             the decision variable list:
-                z = [state, normal_forces]
+                z = [state, forces]
         """
         
         # Check if the decision variables are floats
         plant, context, _ = self._autodiff_or_float(z)
+        ind = np.cumsum([self.x.shape[0], self.numN])
         # Split the variables from the decision list
-        x, fN = np.split(z, [self.x.shape[0]])
+        x, fN, fT = np.split(z, ind)
         plant.multibody.SetPositionsAndVelocities(context, x)    
         phi = plant.GetNormalDistances(context)
         nContact = len(phi)
@@ -287,20 +345,20 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         
         sigma =  self.distanceVariance
         # phi = np.mean(phi)
-        f = 0
-        B = np.zeros((12,2))
-        B[1,1] = 1
-        B[0,0] = 1
-        fN = fN.reshape((12,1))
-        fN = np.transpose(fN).dot(B)
-        fN = np.transpose(fN)
-        phi = phi.reshape((2,1))
+        # f = 0
+        # B = np.zeros((12,2))
+        # B[1,1] = 1
+        # B[0,0] = 1
+        # fN = fN.reshape((12,1))
+        # fN = np.transpose(fN).dot(B)
+        # fN = np.transpose(fN)
+        # phi = phi.reshape((2,1)) * 10
         # for i in range(nContact):
         #     f += self.ermCost(fN[i], phi[i], sigma)
         # f = self.ermCost(fN[0], phi[0], sigma) + self.ermCost(fN[1], phi[1], sigma)
         f = self.ermCost(fN, phi, sigma)
         f = np.sum(f, axis = 0) * self.ermDistanceMultiplier
-        f = f.item()
+        # f = f.item()
         return f
 
     def frictionConeERMCost(self, z):
@@ -320,6 +378,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         sigma = self.frictionVariance * fN + self.frictionBias
         f = self.ermCost(gam, frictionConeDefect, sigma)
         f = np.sum(f, axis = 0) * self.ermFrictionMultiplier
+        # f = 
         return f
 
     def ermCost(self, x, mu, sigma):

@@ -26,9 +26,12 @@ def plot_CC(horizontal_position, control, force, t, sigmas):
     fig1, axs1 = plt.subplots(3,1)
     
     for i in range(iteration):
+        
         axs1[0].plot(t, horizontal_position[i,:], label = '$\sigma$ = {f}'.format(f = sigmas[i]), linewidth=1.5)
+        # axs1[0].plot(t, horizontal_position[i,:], linewidth=1.5)
         axs1[1].plot(t[:-1], control[i,:-1], linewidth = 2.5)
         axs1[2].plot(t[1:-1], force[i,1:-1], linewidth= 2.5)
+    
     ref_x = axs1[0].twinx()
     ref_u = axs1[1].twinx()
     ref_u.set_ylabel('Reference')
@@ -131,5 +134,5 @@ if __name__ == "__main__":
     #                     [params[1], params[0]], [params[1], params[1]], [params[1], params[2]],
     #                     [params[2], params[0]], [params[2], params[1]], [params[2], params[2]]])
     # plot_CC_beta_theta(horizontal_position, control, friction, t, beta_theta)
-
+    
     plot_CC(horizontal_position, control, friction, t, sigmas)

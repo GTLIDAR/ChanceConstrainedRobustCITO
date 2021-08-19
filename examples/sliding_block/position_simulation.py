@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from systems.terrain import FlatTerrain
 from systems.timestepping import TimeSteppingMultibodyPlant
+from pydrake.math import RigidTransform, RollPitchYaw
 _file = "systems/urdf/sliding_block.urdf"
 cc_erm_control = np.loadtxt('data/slidingblock/erm_w_cc/control.txt')
 erm_control= np.loadtxt('data/slidingblock/erm/control.txt')
@@ -15,6 +16,9 @@ x0 = np.array([0, 0.5, 0, 0])
 fig, axs = plt.subplots(3,1)
 for i in range(len(frictions)):
     plant = TimeSteppingMultibodyPlant(file= _file, terrain = FlatTerrain(friction = frictions[i]))
+    body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+    base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+    plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
     plant.Finalize()
     control = reference_control
     t, x, f = plant.simulate(h, x0, u = control.reshape(1,101), N = 101)
@@ -31,8 +35,11 @@ for i in range(len(frictions)):
 
 for i in range(len(frictions)):
     plant = TimeSteppingMultibodyPlant(file= _file, terrain = FlatTerrain(friction = frictions[i]))
+    body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+    base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+    plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
     plant.Finalize()
-    control = erm_control[4]
+    control = erm_control[2]
     t, x, f = plant.simulate(h, x0, u = control.reshape(1,101), N = 101)
     y_bar = np.zeros(t.shape) + 5
     axs[1].plot(t, y_bar, 'k', linewidth =1)
@@ -47,8 +54,11 @@ for i in range(len(frictions)):
 
 for i in range(len(frictions)):
     plant = TimeSteppingMultibodyPlant(file= _file, terrain = FlatTerrain(friction = frictions[i]))
+    body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+    base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+    plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
     plant.Finalize()
-    control = cc_erm_control[4]
+    control = cc_erm_control[2]
     t, x, f = plant.simulate(h, x0, u = control.reshape(1,101), N = 101)
     y_bar = np.zeros(t.shape) + 5
     axs[2].plot(t, y_bar, 'k', linewidth =1)

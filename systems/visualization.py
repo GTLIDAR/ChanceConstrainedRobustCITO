@@ -6,7 +6,7 @@ January 19, 2021
 """
 
 import numpy as np
-from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, ClippingRange, DepthRange, DepthRenderCamera, RenderCameraCore, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose)
+from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, ClippingRange, DepthRange, DepthRenderCamera, RenderCameraCore, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose, Rgba, RoleAssign)
 from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.parsing import Parser
@@ -17,11 +17,33 @@ from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
 from utilities import FindResource
 
-#TODO: Refactor for cleanliness and readability
 
 class Visualizer():
     def __init__(self, urdf):
         self._create_plant(urdf)
+
+    def addModelFromFile(self, urdf=None, name=None):
+        if urdf is None:
+            return
+        if type(self.model_index) is not list:
+            self.model_index = [self.model_index]
+        if name is None:
+            # Add the model to the visualizer
+            self.model_index.append(Parser(self.plant).AddModelFromFile(FindResource(urdf)))
+        else:
+            self.model_index.append(Parser(self.plant).AddModelFromFile(FindResource(urdf), model_name=name))
+    
+    def setBodyColor(self, body_ind, color):
+        """Set the color of a specific body in the multibodyplant"""
+        frameID = self.plant.GetBodyFrameIdIfExists(body_ind)
+        # Create scenegraph inspector and get geometry ID for the block
+        inspector = self.scenegraph.model_inspector()
+        geomID = inspector.GetGeometries(frameID)
+        #vis.plant.RegisterVisualGeometry(body, pose, shape, name, color)
+        illustrator = inspector.GetIllustrationProperties(geomID[0])
+        illustrator.UpdateProperty("phong","diffuse", Rgba(color[0], color[1], color[2], color[3]))
+        sourceID = self.plant.get_source_id()
+        self.scenegraph.AssignRole(sourceID, geomID[0], illustrator, RoleAssign.kReplace)
 
     def _create_plant(self, urdf):
         self.plant = MultibodyPlant(time_step=0.0)
@@ -32,7 +54,8 @@ class Visualizer():
         self.builder.AddSystem(self.scenegraph)
 
     def _finalize_plant(self):
-        self.plant.Finalize()
+        if not self.plant.is_finalized():
+            self.plant.Finalize()
 
     def _add_trajectory_source(self, traj):
         # Create the trajectory source
@@ -86,6 +109,7 @@ class Visualizer():
         self._finalize_plant()
         print("Adding trajectory source")
         xtraj = self._check_trajectory(xtraj)
+        xtraj = self._buffer_trajectory(xtraj)
         self._add_trajectory_source(xtraj)
         print("Adding renderer")
         self._add_renderer()
@@ -94,6 +118,21 @@ class Visualizer():
         print("Making visualization")
         self._make_visualization(xtraj.end_time())
         
+    def _buffer_trajectory(self, traj):
+        breaks = traj.get_segment_times()
+        vals = traj.vector_values(breaks)
+        # Buffer the end of the trajectory by repeating the final value twice
+        vals = np.concatenate([vals, vals[:,-1:], vals[:,-1:]], axis=1)
+        dt = breaks[-1] - breaks[-2]
+        breaks.append(breaks[-1] + dt)
+        breaks.append(breaks[-1] + dt)
+        # Buffer the beginning too
+        vals = np.concatenate([vals[:,:1], vals], axis=1)
+        breaks.insert(0, 0)
+        breaks = np.array(breaks)
+        breaks[1:] += dt
+        return PiecewisePolynomial.FirstOrderHold(breaks, vals)
+    
     def _check_trajectory(self, traj):
         if traj is None:
             plant_context = self.plant.CreateDefaultContext()
@@ -129,6 +168,13 @@ def zero_pad_rows(val, totalrows):
         return val[0:totalrows, :]
     else:
         return val
+
+
+
+# if __name__ == "__main__":
+#    file = 'systems/A1/A1_description/urdf/a1_no_collision.urdf'
+#    vis = Visualizer(file)
+#    vis.visualize_trajectory()
 
 if __name__ == "__main__":
    file = "systems/urdf/single_legged_hopper.urdf"

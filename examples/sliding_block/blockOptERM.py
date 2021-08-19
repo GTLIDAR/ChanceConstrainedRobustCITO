@@ -3,7 +3,7 @@ import timeit
 import numpy as np
 import matplotlib.pyplot as plt
 # from trajopt.contactimplicit import ContactImplicitDirectTranscription
-from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
+from trajopt.robustContactImplicit import OptimizationOptions, ChanceConstrainedContactImplicit
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
@@ -12,8 +12,15 @@ import pickle
 import os
 from tempfile import TemporaryFile
 from plotting_tool import plot_ERM
+from trajopt.constraints import NCCImplementation, NCCSlackType
+from pydrake.all import PiecewisePolynomial, RigidTransform
 # Create the block model with the default flat terrain
-plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
+# plant = TimeSteppingMultibodyPlant(file="systems/urdf/sliding_block.urdf")
+_file = "systems/urdf/sliding_block.urdf"
+plant = TimeSteppingMultibodyPlant(file= _file)
+body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
 plant.Finalize()
 num_step = 101
 step_size = 0.01
@@ -28,14 +35,14 @@ friction_multiplier = 1e3
 # set normal distance ERM parameters
 distance_multiplier = 10
 # set uncertainty option
-uncertainty_option = 2
+uncertainty_option = 1
 # set chance constraint option
-cc_option = 3
+cc_option = 1
 # Add initial and final state constraints
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
 # Add a running cost weights on the controls
-R= 1* np.ones((1,1))
+R= 10* np.ones((1,1))
 b = np.zeros((1,))
 # Add running cost weight on state
 Q = 1*np.diag([1,1,1,1])
@@ -55,10 +62,12 @@ control = np.zeros([iteration,num_step])
 for i in range (iteration):
     friction_variance = frictionVar[i]
     distance_variance = distanceVar[i]
-
     friction_erm_params = np.array([friction_variance, friction_bias, friction_multiplier])
     distance_erm_params = np.array([distance_variance, distance_multiplier])
     # Create a Contact Implicit Trajectory Optimization
+    options = OptimizationOptions()
+    options.ncc_implementation = NCCImplementation.LINEAR_EQUALITY
+    options.slacktype = NCCSlackType.CONSTANT_SLACK
     trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
                                             num_time_samples=num_step,
@@ -68,7 +77,9 @@ for i in range (iteration):
                                             distance_param = distance_erm_params,
                                             friction_param= friction_erm_params,
                                             optionERM = uncertainty_option,
-                                            optionCC = cc_option)
+                                            optionCC = cc_option,
+                                            options=options
+                                            )
     trajopt.add_state_constraint(knotpoint=0, value=x0)    
     trajopt.add_state_constraint(knotpoint=100, value=xf)
     # Set all the timesteps to be equal
@@ -107,9 +118,21 @@ for i in range (iteration):
     u = trajopt.reconstruct_input_trajectory(result)
     l = trajopt.reconstruct_reaction_force_trajectory(result)
     t = trajopt.get_solution_times(result)
-    horizontal_position[i, :] = x[0, :]
-    horizontal_velocity[i, :] = x[2, :]
-    control[i, :] = u[0, :]
+    # s = trajopt.reconstruct_slack_trajectory(result)
+    soln = trajopt.result_to_dict(result)
+    _name = "erm_%d.pkl" %(sigma)
+    _filename = "data/slidingblock/" + _name
+    utils.save(_filename, soln)
+    t, xtraj = utils.GetKnotsFromTrajectory(x)
+    fig1, axs1 = plt.subplots(3,1)
+    axs1[0].plot(t,xtraj[0,:])
+    plt.show()
+    # trajopt.plant_f.plot_trajectories(x, u, l)
+
+    # horizontal_position[i, :] = x[0, :]
+    # horizontal_velocity[i, :] = x[2, :]
+    # control[i, :] = u[0, :]
+
 # plot trajectory
-plot(horizontal_position, control, t, iteration, frictionVar)
+# plot(horizontal_position, control, t, iteration, frictionVar)
 print('Done!')

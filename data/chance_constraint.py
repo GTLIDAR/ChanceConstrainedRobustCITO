@@ -8,8 +8,9 @@ def chance_constraint(beta, theta, sigma):
     lb = -np.sqrt(2)*sigma*erfinv(2* beta - 1)
     ub = -np.sqrt(2)*sigma*erfinv(1 - 2*theta)
     return lb, ub
-
-plt.close('all')
+lb, ub = chance_constraint(0.6, 0.6, 0.3)
+print(ub)
+# plt.close('all')
 # mu = np.arange(100, -100, -1)
 z = np.arange(0, 101, 1)
 beta, theta = 0.9, 0.9

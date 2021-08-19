@@ -2,54 +2,76 @@
 import timeit
 import numpy as np
 import matplotlib.pyplot as plt
-# from trajopt.contactimplicit import ContactImplicitDirectTranscription
+from trajopt.contactimplicit import OptimizationOptions, ContactImplicitDirectTranscription 
 from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
 from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
+from trajopt.constraints import NCCImplementation, NCCSlackType
 import utilities as utils
 from scipy.special import erfinv
 import pickle
 import os
 from tempfile import TemporaryFile
-from plot_hopper import plot_CC
+from plot_hopper import plot_CC, plot_erm
+from pydrake.all import PiecewisePolynomial, RigidTransform
+import pickle
 # Create the block model with the default flat terrain
 _file = "systems/urdf/single_legged_hopper.urdf"
 # _file = "systems/urdf/hopper_old.urdf"
 plant = TimeSteppingMultibodyPlant(file= _file)
+body_inds = plant.multibody.GetBodyIndices(plant.model_index)
+base_frame = plant.multibody.get_body(body_inds[0]).body_frame()
+plant.multibody.WeldFrames(plant.multibody.world_frame(), base_frame, RigidTransform())
 plant.Finalize()
-num_step = 201
-step_size = 0.01
+num_step = 101
+step_size = 0.03
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta = 0.6, 0.6
-sigmas = [0.3, 0.5, 0.7]
-# sigmas = np.array([0.28])
+# beta_theta = np.array([0.6, 0.85, 0.9])
+# beta, theta = 0.5, 0.6
+beta = 0.5
+thetas = np.array([0.75 ])
+# sigmas = [ 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
+# sigmas = np.array([0.01, 0.05, 0.07, 0.09])
 times = []
 # set distance ERM parameters
 distance_multiplier = 1e6
 # set uncertainty option
 uncertainty_option = 2
 # set chance constraint option
-cc_option = 1
+cc_option = 2
 # Add initial and final state constraints
-angle = 0.5 
-height = np.cos(0.5) * 2
+height = 1.5
+angle = np.arccos(0.75/1)
 # Add initial and final state
 x0 = np.array([0, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
 xf = np.array([4, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
 
 # iterations 
-iteration = len(sigmas)
+iteration = len(thetas)
 
 # initial trajectory
+# data = utils.load('data/single_legged_hopper/reference_traj.pkl')
+# x = data['state'][:]
+# u = data['control'][:] 
+# t = data['time'][:]
+# l = data['force'][:]
+# s = data['slacks'][:]
+# jl = data['jointlimit'][:]
 
 # loop through different variance values
 for i in range (iteration):
-    sigma = sigmas[i]
+    # sigma = sigmas[i]
+    sigma = 0.05
+    # beta = beta_theta[i]
+    theta = thetas[i]
     chance_params = np.array([beta, theta, sigma])
     distance_erm_params = np.array([sigma, distance_multiplier])
     # Create a Contact Implicit Trajectory Optimization
+    options = OptimizationOptions()
+    options.ncc_implementation = NCCImplementation.LINEAR_EQUALITY
+    options.slacktype = NCCSlackType.CONSTANT_SLACK
     trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             context=context,
                                             num_time_samples=num_step,
@@ -57,20 +79,23 @@ for i in range (iteration):
                                             minimum_timestep=step_size,
                                             chance_param= chance_params,
                                             distance_param= distance_erm_params,
+                                            friction_param= np.array([0.01, 0.01, 1e5]),
                                             optionERM = uncertainty_option,
-                                            optionCC = cc_option)
-    # x_init = np.loadtxt('data/single_legged_hopper/erm_2/x_{f}_.txt'.format(f = sigma))
-    # u_init = np.loadtxt('data/single_legged_hopper/erm_2/u_{f}_.txt'.format(f = sigma))
-    # l_init = np.loadtxt('data/single_legged_hopper/erm_2/l_{f}_.txt'.format(f = sigma))
-    # t_init = np.loadtxt('data/single_legged_hopper/erm_2/x_{f}_.txt'.format(f = sigma))
-    
-    x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x.txt')
-    u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u.txt')
-    l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l.txt')
-    t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
+                                            optionCC = cc_option,
+                                            options = options)
+    init_num = '8'
+    # load initial traj
+    x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x_{n}.txt'.format(n = init_num))
+    u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u_{n}.txt'.format(n = init_num))
     u_init = u_init.reshape(trajopt.u.shape)
+    l_init = np.loadtxt('data/single_legged_hopper/nominal_3/l_{n}.txt'.format(n = init_num))
+    jl_init = np.loadtxt('data/single_legged_hopper/nominal_3/jl_{n}.txt'.format(n = init_num))
+    s_init = np.loadtxt('data/single_legged_hopper/nominal_3/s_{n}.txt'.format(n = init_num))
+
+    t_init = np.loadtxt('data/single_legged_hopper/nominal_3/t.txt')
+    
     trajopt.add_state_constraint(knotpoint=0, value=x0)    
-    trajopt.add_state_constraint(knotpoint=300, value=xf)
+    trajopt.add_state_constraint(knotpoint=100, value=xf)
     # Set all the timesteps to be equal
     trajopt.add_equal_time_constraints()
     # Add control and state costs
@@ -78,26 +103,30 @@ for i in range (iteration):
     R=  0.01*np.diag([1,1,1])
     b = np.zeros((3,))
     # Add running cost weight on state
-    Q = np.diag([1,10,10,100,100,1,1,10,10,10])
+    Q = np.diag([1,10,10,100,100,1,1,1,1,1])
     trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
     trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
+
     # Add a final cost on the total time
     # cost = lambda h: np.sum(h)
     # trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
-    u_init = u_init.reshape(trajopt.u.shape)
+    # u_init = u_init.reshape(trajopt.u.shape)
     # Set the initial trajectory guess, might switch out later for a warm start trajectory
 
-    trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
+    trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init, jltraj = jl_init, straj = s_init)
     prog = trajopt.get_program()
     
     # Set the SNOPT solver options
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e6)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 5*1e5)
+    prog.SetSolverOption(SnoptSolver().solver_id(), 'Major Iterations Limit',5*1e4)
     prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
     prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
-    prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 1)
+    prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option",2)
     solver = SnoptSolver()
+    if not utils.CheckProgram(prog):
+        quit()
     # Solve the problem
-    print("Solving trajectory optimization ", i + 1)
+    print("Solving trajectory optimization, theta =", theta)
     start = timeit.default_timer()
     result = solver.Solve(prog)
     stop = timeit.default_timer()
@@ -115,12 +144,19 @@ for i in range (iteration):
     l = trajopt.reconstruct_reaction_force_trajectory(result)
     t = trajopt.get_solution_times(result)
     # save trajectory
-    np.savetxt('data/single_legged_hopper/erm_3/x_{f}.txt'.format(f = sigma), x, fmt = '%1.3f')
-    np.savetxt('data/single_legged_hopper/erm_3/u_{f}.txt'.format(f = sigma), u, fmt = '%1.3f')
-    np.savetxt('data/single_legged_hopper/erm_3/l_{f}.txt'.format(f = sigma), l, fmt = '%1.3f')
-    np.savetxt('data/single_legged_hopper/erm_3/t.txt', t, fmt = '%1.3f')
+    save_num = 6
+    folder = 'erm_cc_beta_theta'
+    np.savetxt('data/single_legged_hopper/{f}/x_{n}{s}.txt'.format(n = save_num, s = theta, f = folder), x, fmt = '%1.3f')
+    np.savetxt('data/single_legged_hopper/{f}/u_{n}{s}.txt'.format(n = save_num, s = theta, f = folder), u, fmt = '%1.3f')
+    np.savetxt('data/single_legged_hopper/{f}/l_{n}{s}.txt'.format(n = save_num, s = theta, f = folder), l, fmt = '%1.3f')
+    np.savetxt('data/single_legged_hopper/{f}/t.txt'.format(f = folder), t, fmt = '%1.3f')
+    # np.savetxt('data/single_legged_hopper/erm_cc_2/x_{f}.txt'.format(f = beta), x, fmt = '%1.3f')
+    # np.savetxt('data/single_legged_hopper/erm_cc_2/u_{f}.txt'.format(f = beta), u, fmt = '%1.3f')
+    # np.savetxt('data/single_legged_hopper/erm_cc_2/l_{f}.txt'.format(f = beta), l, fmt = '%1.3f')
+    # np.savetxt('data/single_legged_hopper/erm_cc_2/t.txt', t, fmt = '%1.3f')
 
 # plot trajectory
 # plot_CC(base_height, foot_height, normal_force, t, sigmas)
+plot_erm(sigmas, folder ,save_num)
 print("Elapsed times: ", times)
 print('Done!')

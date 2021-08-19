@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot name = "blockterrain">
+<material name="black">
+    <color rgba="0.0 0.0 0.0 1.0"/>
+  </material>
+  <material name="blue">
+    <color rgba="0.0 0.0 0.8 1.0"/>
+  </material>
+  <material name="green">
+    <color rgba="0.0 0.8 0.0 1.0"/>
+  </material>
+  <material name="grey">
+    <color rgba="0.2 0.2 0.2 1.0"/>
+  </material>
+  <material name="silver">
+    <color rgba="0.913725490196 0.913725490196 0.847058823529 1.0"/>
+  </material>
+  <material name="orange">
+    <color rgba="1.0 0.423529411765 0.0392156862745 1.0"/>
+  </material>
+  <material name="brown">
+    <color rgba="0.870588235294 0.811764705882 0.764705882353 1.0"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0.0 0.0 1.0"/>
+  </material>
+  <material name="white">
+    <color rgba="1.0 1.0 1.0 1.0"/>
+  </material>
+<link name = "starting_tile">
+        <visual>
+            <origin xyz = ".5 3 -0.05"/>
+            <geometry>
+                <box size = "8 10 0.1" />
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+    </link>
+    <link name = "goal_tile">
+        <visual>
+            <origin xyz = "5 3 -0.05"/>
+            <geometry>
+                <box size = "1 10 0.1"/>
+            </geometry>
+            <material name="green"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+    </link>
+    <link name = "final_tile">
+        <visual>
+            <origin xyz = "7.5 3 -0.05"/>
+            <geometry>
+                <box size="4 10 0.1"/>
+            </geometry>
+        <material name="grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.167" iyy="0.167" izz="0.167" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+        <!-- Put a single collision point at the bottom of the box-->
+        <!--First collision point-->
+        <collision>
+            <origin xyz="0.0 0.0 -0.5"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+    </link>
+    <!--Add joints between the dummy frames to model the brick-->
+    <joint name="start_to_sticky" type="fixed">
+        <parent link="starting_tile"/>
+        <child link="goal_tile"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+    <joint name="stick_to_final" type="fixed">
+        <parent link="goal_tile"/>
+        <child link="final_tile"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+</robot>
