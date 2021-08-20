@@ -6,6 +6,8 @@ The goal is to move a 1kg block 5m in 1s. The timesteps are fixed, and the objec
 
 Luke Drnach
 October 15, 2020
+John Zhang
+August, 20, 2021
 """
 # Imports
 import timeit
@@ -17,24 +19,63 @@ from trajopt.constraints import NCCImplementation, NCCSlackType
 from systems.block.block import Block
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
-#TODO: Check if the ElasticWeight parameter is available in this version of Drake
+from IEEE_figures import plot_control_trajectories
 
-def run_block_trajopt():
+def run_block_trajopt_ERM(friction_multipler = 1e6):
+    friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+    friction_bias = 0.01
+    folder = "data/IEEE_Access/sliding_block/ERM"
+    distance_variance = 0.1
+    distance_multiplier = 1e6
+    distance_erm_params = np.array([distance_variance, distance_multiplier])
+    for sigma in friction_sigmas:
+        friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
+        print(f"Friction Variance is {sigma}")
+        name = f"block_erm_{sigma}"
+        run_block_trajopt(friction_erm_params=friction_erm_params, 
+                            distance_erm_params=distance_erm_params,
+                            uncertainty_option=3, cc_option=1, save_folder=folder, 
+                            save_name=name)
+    plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
+
+def run_block_trajopt(cc_params = [0.5,0.5,0],
+                        distance_erm_params = [0.1, 1],
+                        friction_erm_params = [0.1, 0.01, 1],
+                        uncertainty_option = 1,
+                        cc_option = 1,
+                        save_folder = "data/IEEE_Access/sliding_block",
+                        save_name = "block_trajopt.pkl"):
     # trajopt = setup_nominal_block_trajopt()
-    trajopt = setup_robust_block_trajopt()
+    # trajopt = setup_robust_block_trajopt()
+    plant, context = create_block_plant()
+    options = setup_options()
+    trajopt = ChanceConstrainedContactImplicit(plant=plant,
+                                            context=context,
+                                            num_time_samples=101,
+                                            maximum_timestep=0.01,
+                                            minimum_timestep=0.01,
+                                            chance_param= cc_params,
+                                            distance_param = distance_erm_params,
+                                            friction_param= friction_erm_params,
+                                            optionERM = uncertainty_option,
+                                            optionCC = cc_option,
+                                            # options=options
+                                            )
     # Set the boundary constraints
     x0, xf = create_boundary_constraints()
     set_boundary_constraints(trajopt, x0, xf)
     # Require the timesteps be equal
     trajopt.add_equal_time_constraints()
     # Set the costs
-    add_control_cost(trajopt)
-    add_state_cost(trajopt, xf)
-    add_final_cost(trajopt)
+    add_control_cost(trajopt, weight=100)
+    add_state_cost(trajopt, xf, weight=1)
+    # add_final_cost(trajopt)
     # Set the initial condition
-    set_linear_guess(trajopt, x0, xf)
+    # set_linear_guess(trajopt, x0, xf)
+    initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access/sliding_block", name="block_trajopt_nominal_tight.pkl")
     # Set the default solver options
-    set_default_snopt_options(trajopt)
+    set_default_snopt_options(trajopt, scale_option=2)
+    # set_tight_snopt_options(trajopt)
     #Check the problem for bugs in the constraints
     if not utils.CheckProgram(trajopt.prog):
         quit()
@@ -42,10 +83,10 @@ def run_block_trajopt():
     result = solve_block_trajopt(trajopt)
     soln = trajopt.result_to_dict(result)
     # Plot results
-    plot_block_trajectories(trajopt, result)
+    # plot_block_trajectories(trajopt, result)
     # Save
-    save_block_trajectories(soln, 'block_trajopt.pkl')
-    # Tighten snopt options
+    save_block_trajectories(soln, folder = save_folder, name =save_name)
+    # # Tighten snopt options
     # set_tight_snopt_options(trajopt)
     # initialize_from_previous(trajopt, soln)
     # # Run optimization
@@ -54,9 +95,9 @@ def run_block_trajopt():
     # # Plot results
     # plot_block_trajectories(trajopt, result)
     # # Save
-    # save_block_trajectories(soln, 'block_trajopt_tight.pkl')
+    # save_block_trajectories(soln, folder = 'data/IEEE_Access/sliding_block', name = 'block_trajopt_nominal_tight.pkl')
 
-def setup_robust_block_trajopt():
+def setup_robust_block_trajopt(cc_params = [], uncertainty_option = 1, cc_option = 1):
     """ Create block plant and robust contact-implicit trajectory optimization"""
     plant = Block()
     plant.Finalize()
@@ -70,14 +111,21 @@ def setup_robust_block_trajopt():
                                             num_time_samples=101,
                                             maximum_timestep=0.01,
                                             minimum_timestep=0.01,
-                                            # chance_param= chance_params,
-                                            # distance_param = distance_erm_params,
-                                            # friction_param= friction_erm_params,
-                                            # optionERM = uncertainty_option,
-                                            # optionCC = cc_option,
-                                            options=options
-                                            )
+                                            chance_param= cc_params,
+                                            distance_param = distance_erm_params,
+                                            friction_param= friction_erm_params,
+                                            optionERM = uncertainty_option,
+                                            optionCC = cc_option,
+                                            options=options)
     return trajopt
+
+def create_block_plant():
+    """ Create block plant"""
+    plant = Block()
+    plant.Finalize()
+    # Get the default context
+    context = plant.multibody.CreateDefaultContext()
+    return plant, context
 
 def setup_nominal_block_trajopt():
     """ Create block plant and contact-implicit trajectory optimization"""
@@ -128,33 +176,34 @@ def set_linear_guess(trajopt, x0, xf):
     # Set the guess in the trajopt
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 
-def add_control_cost(trajopt):
+def add_control_cost(trajopt, weight = 1):
     """Add a quadratic cost on the control effort"""
     nU = trajopt.u.shape[0]
-    R = 10 * np.eye(nU)
+    R = weight*np.eye(nU)
     b = np.zeros((nU,))
     trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
 
-def add_state_cost(trajopt, b):
+def add_state_cost(trajopt, b, weight = 1):
     """Add a quadratic cost of the state deviation"""
     nX = trajopt.x.shape[0]
-    R = np.eye(nX)
-    trajopt.add_quadratic_running_cost(R, b, [trajopt.x], name="StateCost")
+    Q = weight*np.eye(nX)
+    trajopt.add_quadratic_running_cost(Q, b, [trajopt.x], name="StateCost")
 
 def add_final_cost(trajopt):
     """Add a final cost on the total time for the motion"""
     cost = lambda h: np.sum(h)
     trajopt.add_final_cost(cost, vars=[trajopt.h], name="TotalTime")
 
-def set_default_snopt_options(trajopt):
+def set_default_snopt_options(trajopt, scale_option = 2):
     """ Set SNOPT solver options """
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
-    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", 2)
+    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", scale_option)
 
 def set_tight_snopt_options(trajopt):
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-8)
+    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-8)
 
 def initialize_from_previous(trajopt, soln):
     trajopt.set_initial_guess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
@@ -175,9 +224,16 @@ def plot_block_trajectories(trajopt, result):
     xtraj, utraj, ftraj, _ = trajopt.reconstruct_all_trajectories(result)
     trajopt.plant_f.plot_trajectories(xtraj, utraj, ftraj)
 
-def save_block_trajectories(soln, folder = "data/slidingblock/", name="block_trajopt.pkl"):
-    file = folder + name
+def save_block_trajectories(soln = None, folder = "data/IEEE_Access", name="block_trajopt.pkl"):
+    file = folder + '/' + name
     utils.save(file, soln)
 
+def initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access", name="block_trajopt.pkl"):
+    file = folder + '/' + name
+    soln = utils.load(file)
+    trajopt.set_initial_guess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
+
 if __name__ == "__main__":
-    run_block_trajopt()
+    # run_block_trajopt()
+    run_block_trajopt_ERM()
+    # ref_soln = utils.load('data/IEEE_Access/sliding_block/block_trajopt_nominal_tight.pkl')

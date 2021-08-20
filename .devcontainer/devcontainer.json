@@ -11,7 +11,7 @@
         "smilerobotics.urdf"
     ],
     "containerEnv":{
-        "DISPLAY": "172.16.6.228:0.0"
+        "DISPLAY": "128.61.62.6:0.0"
 
     }
 }
