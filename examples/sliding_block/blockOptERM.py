@@ -27,11 +27,11 @@ step_size = 0.01
 # Get the default context
 context = plant.multibody.CreateDefaultContext()
 # set chance constraints parameters
-beta, theta, sigma = 0.6, 0.6, 0.2
+beta, theta, sigma = 0.6, 0.6, 0.1
 chance_params = np.array([beta, theta, sigma])
 # set friction ERM parameters
 friction_bias = 0.01
-friction_multiplier = 1e3
+friction_multiplier = 1e6
 # set normal distance ERM parameters
 distance_multiplier = 10
 # set uncertainty option
@@ -42,7 +42,7 @@ cc_option = 1
 x0 = np.array([0., 0.5, 0., 0.])
 xf = np.array([5., 0.5, 0., 0.])
 # Add a running cost weights on the controls
-R= 10* np.ones((1,1))
+R= 100* np.ones((1,1))
 b = np.zeros((1,))
 # Add running cost weight on state
 Q = 1*np.diag([1,1,1,1])
@@ -88,15 +88,15 @@ for i in range (iteration):
     trajopt.add_quadratic_running_cost(R, b, [trajopt.u], name="ControlCost")
     trajopt.add_quadratic_running_cost(Q, xf, [trajopt.x], name="StateCost")
     # Set the initial trajectory guess, might switch out later for a warm start trajectory
-    u_init = np.zeros(trajopt.u.shape)
-    x_init = np.zeros(trajopt.x.shape)
-    for n in range(0, x_init.shape[0]):
-        x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
-    l_init = np.zeros(trajopt.l.shape)
-    # x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
-    # u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
-    # u_init = u_init.reshape(trajopt.u.shape)
-    # l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
+    # u_init = np.zeros(trajopt.u.shape)
+    # x_init = np.zeros(trajopt.x.shape)
+    # for n in range(0, x_init.shape[0]):
+    #     x_init[n,:] = np.linspace(start=x0[n], stop=xf[n], num=101)
+    # l_init = np.zeros(trajopt.l.shape)
+    x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+    u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+    u_init = u_init.reshape(trajopt.u.shape)
+    l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 
     
@@ -125,20 +125,20 @@ for i in range (iteration):
     l = trajopt.reconstruct_reaction_force_trajectory(result)
     t = trajopt.get_solution_times(result)
     # s = trajopt.reconstruct_slack_trajectory(result)
-    soln = trajopt.result_to_dict(result)
-    _name = "erm_%d.pkl" %(sigma)
-    _filename = "data/slidingblock/" + _name
-    utils.save(_filename, soln)
-    t, xtraj = utils.GetKnotsFromTrajectory(x)
-    fig1, axs1 = plt.subplots(3,1)
-    axs1[0].plot(t,xtraj[0,:])
-    plt.show()
-    # trajopt.plant_f.plot_trajectories(x, u, l)
+    # soln = trajopt.result_to_dict(result)
+    # _name = "erm_%d.pkl" %(sigma)
+    # _filename = "data/slidingblock/" + _name
+    # utils.save(_filename, soln)
+    # t, xtraj = utils.GetKnotsFromTrajectory(x)
+    # fig1, axs1 = plt.subplots(3,1)
+    # axs1[0].plot(t,xtraj[0,:])
+    # plt.show()
+    trajopt.plant_f.plot_trajectories(x, u, l)
 
-    # horizontal_position[i, :] = x[0, :]
-    # horizontal_velocity[i, :] = x[2, :]
-    # control[i, :] = u[0, :]
+    horizontal_position[i, :] = x[0, :]
+    horizontal_velocity[i, :] = x[2, :]
+    control[i, :] = u[0, :]
 
 # plot trajectory
-# plot(horizontal_position, control, t, iteration, frictionVar)
+plot(horizontal_position, control, t, iteration, frictionVar)
 print('Done!')

@@ -23,8 +23,9 @@ from IEEE_figures import plot_control_trajectories
 
 def run_block_trajopt_ERM(friction_multipler = 1e6):
     friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+    # friction_sigmas = np.array([ 0.3])
     friction_bias = 0.01
-    folder = "data/IEEE_Access/sliding_block/ERM"
+    folder = "data/IEEE_Access/sliding_block/ERM_tight"
     distance_variance = 0.1
     distance_multiplier = 1e6
     distance_erm_params = np.array([distance_variance, distance_multiplier])
@@ -43,8 +44,8 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                         friction_erm_params = [0.1, 0.01, 1],
                         uncertainty_option = 1,
                         cc_option = 1,
-                        save_folder = "data/IEEE_Access/sliding_block",
-                        save_name = "block_trajopt.pkl"):
+                        save_folder = None,
+                        save_name = None):
     # trajopt = setup_nominal_block_trajopt()
     # trajopt = setup_robust_block_trajopt()
     plant, context = create_block_plant()
@@ -59,8 +60,9 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                                             friction_param= friction_erm_params,
                                             optionERM = uncertainty_option,
                                             optionCC = cc_option,
-                                            # options=options
+                                            options=options
                                             )
+    # trajopt.enable_cost_display(display='figure')
     # Set the boundary constraints
     x0, xf = create_boundary_constraints()
     set_boundary_constraints(trajopt, x0, xf)
@@ -74,8 +76,8 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     # set_linear_guess(trajopt, x0, xf)
     initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access/sliding_block", name="block_trajopt_nominal_tight.pkl")
     # Set the default solver options
-    set_default_snopt_options(trajopt, scale_option=2)
-    # set_tight_snopt_options(trajopt)
+    set_default_snopt_options(trajopt, scale_option=1)
+    set_tight_snopt_options(trajopt)
     #Check the problem for bugs in the constraints
     if not utils.CheckProgram(trajopt.prog):
         quit()
@@ -196,7 +198,7 @@ def add_final_cost(trajopt):
 
 def set_default_snopt_options(trajopt, scale_option = 2):
     """ Set SNOPT solver options """
-    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 10000)
+    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", scale_option)
@@ -228,10 +230,15 @@ def save_block_trajectories(soln = None, folder = "data/IEEE_Access", name="bloc
     file = folder + '/' + name
     utils.save(file, soln)
 
-def initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access", name="block_trajopt.pkl"):
-    file = folder + '/' + name
-    soln = utils.load(file)
-    trajopt.set_initial_guess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
+def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
+    # file = folder + 'l_gu/' + name
+    # soln = utils.load(file)
+    # trajopt.set_initiaess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
+    x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
+    u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
+    u_init = u_init.reshape(trajopt.u.shape)
+    l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
+    trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 
 if __name__ == "__main__":
     # run_block_trajopt()

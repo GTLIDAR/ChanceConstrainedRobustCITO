@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 # from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from trajopt.robustContactImplicit import ChanceConstrainedContactImplicit
-from systems.timestepping import TimeSteppingultibodyPlant
-from pydrake.solvers.snopt import SnoptSolverM
+from systems.timestepping import TimeSteppingMultibodyPlant
+from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from scipy.special import erfinv
 import pickle
@@ -29,7 +29,7 @@ times = []
 friction_bias = 0.01
 friction_multiplier = 1e6
 # set uncertainty option
-uncertainty_option = 1
+uncertainty_option = 3
 # set chance constraint option
 cc_option = 1
 # Add initial and final state constraints

@@ -132,8 +132,9 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             if self.erm_option is 3:
                 print("uncertainty from friction cone, no cc relaxation")
                 for n in range(0, self.num_time_samples):
-                    self._add_sliding_velocity_constraint(n) 
                     self._add_normal_distance_constraint(n)
+                    self._add_sliding_velocity_constraint(n) 
+                    
                     
             # if self.erm_option is 4:
             #     for n in range(0, self.num_time_samples):
