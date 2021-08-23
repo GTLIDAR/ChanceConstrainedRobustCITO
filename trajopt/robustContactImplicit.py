@@ -170,11 +170,13 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
 
         elif self.cc_option is 3:
             print("Friction Cone constraint relaxed")
-            self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
-                                                    xdim = self.x.shape[0],
-                                                    zdim = self.numN,
-                                                    slack = 0.)
+            # self.distance_cstr = NonlinearComplementarityFcn(self._normal_distance,
+            #                                         xdim = self.x.shape[0],
+            #                                         zdim = self.numN,
+            #                                         slack = 0.)
+            self.distance_cstr = factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN)
             self.friccone_cstr = self._friction_cone_cc
+            # self.friccone_cstr = ChanceConstrainedComplementarityLINEAR(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
             if self.erm_option is 1:
                 print("no uncertainty, friction cone cc relaxation")
                 for n in range(0, self.num_time_samples):
@@ -252,16 +254,16 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
                         description="sliding_velocity")
 
     def _add_friction_cone_constraint(self, n):
-        # self.prog.AddConstraint(self.friccone_cstr, 
-        #                 lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
-        #                 ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
-        #                 vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
-        #                 description="friction_cone")
         self.prog.AddConstraint(self.friccone_cstr, 
-                        lb=self.friccone_cstr.lower_bound(),
-                        ub=self.friccone_cstr.upper_bound(),
-                        vars=self.friccone_vars.get(n),
+                        lb=np.concatenate((np.zeros((2*self.numN,)), -np.full((self.numN,), np.inf)), axis=0),
+                        ub=np.concatenate((np.full((2*self.numN,), np.inf), np.zeros((self.numN,))), axis=0),
+                        vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
                         description="friction_cone")
+        # self.prog.AddConstraint(self.friccone_cstr, 
+        #                 lb=self.friccone_cstr.lower_bound(),
+        #                 ub=self.friccone_cstr.upper_bound(),
+        #                 vars=self.friccone_vars.get(n),
+        #                 description="friction_cone")
         
     # def _add_normal_velocity_constraint(self, n):
     #     self.prog.AddConstraint(self.normalV_cstr, 

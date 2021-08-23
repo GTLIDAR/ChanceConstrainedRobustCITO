@@ -45,5 +45,6 @@ def compare_traj():
 if __name__ == "__main__":
     plot_control_trajectories(folder="data/IEEE_Access/sliding_block/ERM_tight", name = "block_erm",
                     sigmas=np.array([0.01, 0.05, 0.1, 0.3, 1]))
+                    
     # compare_traj()
     pass

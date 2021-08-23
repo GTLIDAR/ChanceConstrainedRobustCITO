@@ -21,7 +21,7 @@ from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from IEEE_figures import plot_control_trajectories
 
-def run_block_trajopt_ERM(friction_multipler = 1e6):
+def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
     friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
     # friction_sigmas = np.array([ 0.3])
     friction_bias = 0.01
@@ -36,7 +36,25 @@ def run_block_trajopt_ERM(friction_multipler = 1e6):
         run_block_trajopt(friction_erm_params=friction_erm_params, 
                             distance_erm_params=distance_erm_params,
                             uncertainty_option=3, cc_option=1, save_folder=folder, 
-                            save_name=name)
+                            save_name=name, scale_option=scale_option)
+    plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
+
+def run_block_trajopt_ERM_CC(friction_multipler = 1e6, scale_option=2):
+    friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+    # friction_sigmas = np.array([ 0.3])
+    friction_bias = 0.01
+    folder = "data/IEEE_Access/sliding_block/ERM_CC"
+    distance_variance = 0.1
+    distance_multiplier = 1e6
+    distance_erm_params = np.array([distance_variance, distance_multiplier])
+    for sigma in friction_sigmas:
+        friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
+        print(f"Friction Variance is {sigma}")
+        name = f"block_erm_{sigma}"
+        run_block_trajopt(friction_erm_params=friction_erm_params, 
+                            distance_erm_params=distance_erm_params,
+                            uncertainty_option=3, cc_option=3, save_folder=folder, 
+                            save_name=name, scale_option=scale_option)
     plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
 def run_block_trajopt(cc_params = [0.5,0.5,0],
@@ -45,7 +63,7 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                         uncertainty_option = 1,
                         cc_option = 1,
                         save_folder = None,
-                        save_name = None):
+                        save_name = None, scale_option=1):
     # trajopt = setup_nominal_block_trajopt()
     # trajopt = setup_robust_block_trajopt()
     plant, context = create_block_plant()
@@ -76,8 +94,8 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     # set_linear_guess(trajopt, x0, xf)
     initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access/sliding_block", name="block_trajopt_nominal_tight.pkl")
     # Set the default solver options
-    set_default_snopt_options(trajopt, scale_option=1)
-    set_tight_snopt_options(trajopt)
+    set_default_snopt_options(trajopt, scale_option=scale_option)
+    # set_tight_snopt_options(trajopt)
     #Check the problem for bugs in the constraints
     if not utils.CheckProgram(trajopt.prog):
         quit()
@@ -242,5 +260,6 @@ def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
 
 if __name__ == "__main__":
     # run_block_trajopt()
-    run_block_trajopt_ERM()
+    # run_block_trajopt_ERM()
+    run_block_trajopt_ERM_CC()
     # ref_soln = utils.load('data/IEEE_Access/sliding_block/block_trajopt_nominal_tight.pkl')

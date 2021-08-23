@@ -285,7 +285,9 @@ def CheckProgram(prog):
         # Evaluate the constraint with floats
         try:
             xs = [1.]*len(cstr.variables())
+            # print(cstr.evaluator().get_description())
             cstr.evaluator().Eval(xs)
+            
         except RuntimeError as err:
             status = False
             print(f"Evaluating {cstr.evaluator().get_description()} with floats produces a RuntimeError")
