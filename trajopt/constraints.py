@@ -208,7 +208,7 @@ class ChanceConstrainedComplementarityNONLINEAR(ConstantSlackNonlinearComplement
     Implements the problem as:
         f(x) - lb >= 0
         z >= 0 
-        z*f(x) - ub <= s
+        z*f(x) - ub*z <= s
     In this implementation, the slack is pushed to the upper bound of the constraints
     """
     def __init__(self,  fcn, xdim = 0, zdim = 1, beta = 0.5, theta = 0.5, sigma = 0):
@@ -230,7 +230,7 @@ class ChanceConstrainedComplementarityNONLINEAR(ConstantSlackNonlinearComplement
         """
         x, z = np.split(vars, [self.xdim])
         fcn_val = self.fcn(x)
-        return np.concatenate([fcn_val - self.lb, z, fcn_val*z-self.ub], axis=0)
+        return np.concatenate([fcn_val - self.lb, z, fcn_val*z-self.ub*z], axis=0)
 
     def chance_constraint(self):
         '''
@@ -323,7 +323,7 @@ class ChanceConstrainedComplementarityLINEAR(ConstantSlackLinearEqualityCompleme
         """
         x, z, r = np.split(vars, np.cumsum([self.xdim, self.zdim]))
         fcn_val = self.fcn(x)
-        return np.concatenate((r-fcn_val, r - self.lb, z, r*z - self.ub), axis=0)
+        return np.concatenate((r-fcn_val, r - self.lb, z, r*z - self.ub*z), axis=0)
 
     def chance_constraint(self):
         '''

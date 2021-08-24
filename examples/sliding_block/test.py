@@ -3,6 +3,7 @@ from scipy.stats import norm
 from scipy.stats import rv_continuous as rv
 from scipy.stats import rv_discrete as ds
 from math import *
+import matplotlib.pyplot as plt
 def _pdf ( x, mean, sd):
     prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
     return prob_density
@@ -50,12 +51,31 @@ def ermCost_test(x, mu, sigma):
     cdf = _cdf(x, mu, sigma)
     f = x**2 - sigma**2 * (x + mu) * pdf + (sigma**2+ mu**2 - x**2) * cdf
     return f
-x = np.array([1,13])
-mu = np.array([2,2])
-sigma = 1
-cost = ermCost(x, mu, sigma)
-cost_test = ermCost_test(x, mu, sigma)
 
-print(cost)
-print(cost_test)
+def error_plot_test():
+    fig = plt.figure()
+    x = 1
+    y = 2.5 * np.sin(x / 20 * np.pi)
+    # yerr = np.linspace(0.05, 0.2, 10)
+    yerr = np.zeros([2,1])
+    yerr[0]= 0.1
+    yerr[1]=0.2
+    # yerr = np.array([0.1, 0.2])
+
+    plt.errorbar(x, y + 3, yerr=yerr, label='both limits (default)')
+
+    plt.errorbar(x, y + 2, yerr=yerr, uplims=True, label='uplims=True')
+
+    plt.errorbar(x, y + 1, yerr=yerr, uplims=True, lolims=True,
+                label='uplims=True, lolims=True')
+
+    # upperlimits = [True, False] * 5
+    # lowerlimits = [False, True] * 5
+    # plt.errorbar(x, y, yerr=yerr, uplims=upperlimits, lolims=lowerlimits,
+    #             label='subsets of uplims and lolims')
+
+    plt.legend(loc='lower right')
+    plt.show()
+if __name__ == "__main__":
+    error_plot_test()
 

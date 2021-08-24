@@ -83,7 +83,7 @@ for i in range (iteration):
                                             optionERM = uncertainty_option,
                                             optionCC = cc_option,
                                             options = options)
-    init_num = '8'
+    init_num = '9'
     # load initial traj
     x_init = np.loadtxt('data/single_legged_hopper/nominal_3/x_{n}.txt'.format(n = init_num))
     u_init = np.loadtxt('data/single_legged_hopper/nominal_3/u_{n}.txt'.format(n = init_num))

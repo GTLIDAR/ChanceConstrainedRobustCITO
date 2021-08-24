@@ -21,11 +21,11 @@ from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from IEEE_figures import plot_control_trajectories
 
-def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
-    friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+def run_block_trajopt_ERM(friction_multipler = 2*1e6, scale_option=1):
+    friction_sigmas = np.array([0.1, 0.3, 1])
     # friction_sigmas = np.array([ 0.3])
     friction_bias = 0.01
-    folder = "data/IEEE_Access/sliding_block/ERM_tight"
+    folder = f"data/IEEE_Access/sliding_block/ERM_{friction_multipler}_scaleOption_{scale_option}"
     distance_variance = 0.1
     distance_multiplier = 1e6
     distance_erm_params = np.array([distance_variance, distance_multiplier])
@@ -39,23 +39,28 @@ def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
                             save_name=name, scale_option=scale_option)
     plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
-def run_block_trajopt_ERM_CC(friction_multipler = 1e6, scale_option=2):
-    friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
-    # friction_sigmas = np.array([ 0.3])
+def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.6, tight=False):
+    # friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+    friction_sigmas = np.array([ 0.3])
+    friction_multipler = 1e6
     friction_bias = 0.01
-    folder = "data/IEEE_Access/sliding_block/ERM_CC"
+    folder = folder+f"_scaleOption{scale_option}"
+    if tight is True:
+        folder = folder+"_tight"
+    print(folder)
     distance_variance = 0.1
     distance_multiplier = 1e6
     distance_erm_params = np.array([distance_variance, distance_multiplier])
     for sigma in friction_sigmas:
         friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
         print(f"Friction Variance is {sigma}")
-        name = f"block_erm_{sigma}"
-        run_block_trajopt(friction_erm_params=friction_erm_params, 
+        name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
+        cc_params=[beta, theta, sigma]
+        run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                             distance_erm_params=distance_erm_params,
                             uncertainty_option=3, cc_option=3, save_folder=folder, 
-                            save_name=name, scale_option=scale_option)
-    plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
+                            save_name=name, scale_option=scale_option, tight=tight)
+    # plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
 def run_block_trajopt(cc_params = [0.5,0.5,0],
                         distance_erm_params = [0.1, 1],
@@ -63,7 +68,7 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                         uncertainty_option = 1,
                         cc_option = 1,
                         save_folder = None,
-                        save_name = None, scale_option=1):
+                        save_name = None, scale_option=1, tight=False):
     # trajopt = setup_nominal_block_trajopt()
     # trajopt = setup_robust_block_trajopt()
     plant, context = create_block_plant()
@@ -95,7 +100,8 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     initialize_from_saved_trajectories(trajopt, folder = "data/IEEE_Access/sliding_block", name="block_trajopt_nominal_tight.pkl")
     # Set the default solver options
     set_default_snopt_options(trajopt, scale_option=scale_option)
-    # set_tight_snopt_options(trajopt)
+    if tight is True:
+        set_tight_snopt_options(trajopt)
     #Check the problem for bugs in the constraints
     if not utils.CheckProgram(trajopt.prog):
         quit()
@@ -107,7 +113,7 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     # Save
     save_block_trajectories(soln, folder = save_folder, name =save_name)
     # # Tighten snopt options
-    # set_tight_snopt_options(trajopt)
+    set_tight_snopt_options(trajopt)
     # initialize_from_previous(trajopt, soln)
     # # Run optimization
     # result = solve_block_trajopt(trajopt)
@@ -116,28 +122,6 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     # plot_block_trajectories(trajopt, result)
     # # Save
     # save_block_trajectories(soln, folder = 'data/IEEE_Access/sliding_block', name = 'block_trajopt_nominal_tight.pkl')
-
-def setup_robust_block_trajopt(cc_params = [], uncertainty_option = 1, cc_option = 1):
-    """ Create block plant and robust contact-implicit trajectory optimization"""
-    plant = Block()
-    plant.Finalize()
-    # Get the default context
-    context = plant.multibody.CreateDefaultContext()
-    # set up optimization options
-    options = setup_options()
-    # Create a Contact Implicit Trajectory Optimization
-    trajopt = ChanceConstrainedContactImplicit(plant=plant,
-                                            context=context,
-                                            num_time_samples=101,
-                                            maximum_timestep=0.01,
-                                            minimum_timestep=0.01,
-                                            chance_param= cc_params,
-                                            distance_param = distance_erm_params,
-                                            friction_param= friction_erm_params,
-                                            optionERM = uncertainty_option,
-                                            optionCC = cc_option,
-                                            options=options)
-    return trajopt
 
 def create_block_plant():
     """ Create block plant"""
@@ -249,9 +233,9 @@ def save_block_trajectories(soln = None, folder = "data/IEEE_Access", name="bloc
     utils.save(file, soln)
 
 def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
-    # file = folder + 'l_gu/' + name
+    # file = folder + '/' + name
     # soln = utils.load(file)
-    # trajopt.set_initiaess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
+    # trajopt.set_initial_guess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
     x_init = np.loadtxt('data/slidingblock/warm_start/x.txt')
     u_init = np.loadtxt('data/slidingblock/warm_start/u.txt')
     u_init = u_init.reshape(trajopt.u.shape)
@@ -261,5 +245,13 @@ def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
 if __name__ == "__main__":
     # run_block_trajopt()
     # run_block_trajopt_ERM()
-    run_block_trajopt_ERM_CC()
+    # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=1)
+    # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=2)
+    betas = np.array([0.51, 0.6, 0.9])
+    thetas = np.array([0.51, 0.6, 0.9])
+    for beta in betas:
+        for theta in thetas:
+            run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_CC_Beta_theta", 
+                beta=beta, theta=theta, tight=True, scale_option=2)
+    # run_block_trajopt_ERM(friction_multipler=5e6)
     # ref_soln = utils.load('data/IEEE_Access/sliding_block/block_trajopt_nominal_tight.pkl')
