@@ -1,11 +1,11 @@
 """
 This script is used to generate position forward simulation for IEEE Access
-"""
+"""from systems.terrain import FlatTerrain
 from os import stat_result
 from systems.block.block import Block
 import numpy as np
 import matplotlib.pyplot as plt
-from systems.terrain import FlatTerrain
+
 import utilities as utils
 
 # global parameters
@@ -21,7 +21,7 @@ def run_simulation(ERM_dir=None, ERM_CC_dir=None):
     '''beta theta is fixed in this simulation'''
     reference_control = np.loadtxt('data/slidingblock/warm_start/u.txt')
     fig, axs = plt.subplots(3,1)
-    sigma = 1.0
+    sigma = 0.3
     for fric in frictions:
         # reference control
         plant = Block(terrain=FlatTerrain(friction=fric))
@@ -86,7 +86,9 @@ def run_simulation_fixed_CC(ERM_dir= None, ERM_CC_dir=None):
                         elinewidth=linewidth, capthick=capthick, color='darkgreen')
         x = x+2
     plot_target_line(axs=axs)
-    axs.legend()
+    # axs.legend()
+    axs.spines["top"].set_visible(False)
+    axs.spines["right"].set_visible(False)
     plt.show()
 
 def run_simulation_beta_theta(folder=None):
@@ -134,8 +136,10 @@ def run_simulation_beta_theta(folder=None):
             x=x+1
         x=x+1
     axs.set_xticks([])
+    axs.spines["top"].set_visible(False)
+    axs.spines["right"].set_visible(False)
     plot_target_line(axs=axs)
-    axs.legend()
+    # axs.legend()
     plt.show()
 
 def simulate_block_with_perturbed_frictions(frictions=0.5, control=None):
@@ -172,7 +176,7 @@ def calculate_errors(final_positions=None, target=None):
     return mean_position, yerr
 
 def plot_target_line(axs=None):
-    target_line =  np.arange(-1, 17)
+    target_line =  np.arange(-1, 15)
     y = np.zeros(target_line.shape)
     axs.plot(target_line, y, 'k--')
 
@@ -180,5 +184,5 @@ if __name__ == "__main__":
     ERM_folder = "data/IEEE_Access/sliding_block/ERM"
     ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM_CC"
     # run_simulation(ERM_dir=ERM_folder, ERM_CC_dir=ERM_CC_folder)
-    run_simulation_beta_theta(folder="data/IEEE_Access/sliding_block/ERM_CC_Beta_theta_scaleOption2_tight")
-    # run_simulation_fixed_CC()
+    # run_simulation_beta_theta(folder="data/IEEE_Access/sliding_block/ERM_CC_Beta_theta_scaleOption2_tight")
+    run_simulation_fixed_CC()

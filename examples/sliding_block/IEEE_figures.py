@@ -11,7 +11,9 @@ def plot_control_trajectories(folder = None, name = None, sigmas = None):
     axs1[0].plot(t, ref_u, label='Reference', linewidth=2.5)
     axs1[0].legend()
     for sigma in sigmas:
-        filename = f"{folder}/{name}_{sigma}"
+        # filename = f"{folder}/{name}_{sigma}"
+        name = f'block_cc_sigma{sigma}_beta0.65_theta0.65'
+        filename=folder+'/'+name
         soln = load(filename)
         u = soln['control'].reshape(101,1)
         f = soln['force']
@@ -19,7 +21,11 @@ def plot_control_trajectories(folder = None, name = None, sigmas = None):
         # [t, u] = GetKnotsFromTrajectory(soln['control'])
         axs1[1].plot(t[:-1], u[:-1], label=f'$\sigma$ ={sigma}', linewidth=2.5)
         axs1[2].plot(t[:-1], f[1,:-1]-f[3,:-1], label=f'$\sigma$ ={sigma}', linewidth=2.5)
-    axs1[1].legend()
+    # axs1[1].legend()
+    axs1[1].spines["top"].set_visible(False)
+    axs1[1].spines["right"].set_visible(False)
+    axs1[2].spines["top"].set_visible(False)
+    axs1[2].spines["right"].set_visible(False)
     axs1[2].set_yticks([0,-2,-4,-6])
     plt.show()
 
@@ -45,10 +51,11 @@ def compare_traj():
 
 if __name__ == "__main__":
     # dir = "data/IEEE_Access/sliding_block/ERM_CC_1000000.0_scaleOption_1"
-    dir = "data/IEEE_Access/sliding_block/ERM"
-    file_name = "block_erm"
-    # plot_control_trajectories(folder=dir, name = file_name,
-    #                 sigmas=np.array([0.01, 0.05, 0.1, 0.3, 1]))
+    dir = "data/IEEE_Access/sliding_block/ERM_CC"
+    dir = "data/IEEE_Access/sliding_block/CC_scaleOption2"
+    file_name = "block_cc"
+    plot_control_trajectories(folder=dir, name = file_name,
+                    sigmas=np.array([0.01, 0.05, 0.1, 0.3, 1]))
                     
-    compare_traj()
+    # compare_traj()
     pass

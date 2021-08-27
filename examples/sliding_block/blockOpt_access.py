@@ -10,6 +10,7 @@ John Zhang
 August, 20, 2021
 """
 # Imports
+from os import name
 import timeit
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,8 +41,8 @@ def run_block_trajopt_ERM(friction_multipler = 2*1e6, scale_option=1):
     plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
 def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.6, tight=False):
-    # friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
-    friction_sigmas = np.array([ 0.3])
+    friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
+    # friction_sigmas = np.array([ 0.3])
     friction_multipler = 1e6
     friction_bias = 0.01
     folder = folder+f"_scaleOption{scale_option}"
@@ -54,11 +55,13 @@ def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.
     for sigma in friction_sigmas:
         friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
         print(f"Friction Variance is {sigma}")
-        name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
+        # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
+        name = f"block_cc_sigma{sigma}_beta{beta}_theta{theta}"
+
         cc_params=[beta, theta, sigma]
         run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                             distance_erm_params=distance_erm_params,
-                            uncertainty_option=3, cc_option=3, save_folder=folder, 
+                            uncertainty_option=1, cc_option=3, save_folder=folder, 
                             save_name=name, scale_option=scale_option, tight=tight)
     # plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
@@ -242,16 +245,18 @@ def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
     l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 
+
 if __name__ == "__main__":
     # run_block_trajopt()
     # run_block_trajopt_ERM()
     # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=1)
-    # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=2)
-    betas = np.array([0.51, 0.6, 0.9])
-    thetas = np.array([0.51, 0.6, 0.9])
-    for beta in betas:
-        for theta in thetas:
-            run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_CC_Beta_theta", 
-                beta=beta, theta=theta, tight=True, scale_option=2)
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/CC",
+        beta=0.65, theta=0.65, scale_option=2, tight=False)
+    # betas = np.array([0.51, 0.6, 0.9])
+    # thetas = np.array([0.51, 0.6, 0.9])
+    # for beta in betas:
+    #     for theta in thetas:
+    #         run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_CC_Beta_theta", 
+    #             beta=beta, theta=theta, tight=True, scale_option=2)
     # run_block_trajopt_ERM(friction_multipler=5e6)
     # ref_soln = utils.load('data/IEEE_Access/sliding_block/block_trajopt_nominal_tight.pkl')
