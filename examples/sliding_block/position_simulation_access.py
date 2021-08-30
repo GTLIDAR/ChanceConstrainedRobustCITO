@@ -1,6 +1,7 @@
 """
 This script is used to generate position forward simulation for IEEE Access
-"""from systems.terrain import FlatTerrain
+"""
+from systems.terrain import FlatTerrain
 from os import stat_result
 from systems.block.block import Block
 import numpy as np
@@ -86,7 +87,7 @@ def run_simulation_fixed_CC(ERM_dir= None, ERM_CC_dir=None):
                         elinewidth=linewidth, capthick=capthick, color='darkgreen')
         x = x+2
     plot_target_line(axs=axs)
-    # axs.legend()
+    axs.legend()
     axs.spines["top"].set_visible(False)
     axs.spines["right"].set_visible(False)
     plt.show()
@@ -139,7 +140,7 @@ def run_simulation_beta_theta(folder=None):
     axs.spines["top"].set_visible(False)
     axs.spines["right"].set_visible(False)
     plot_target_line(axs=axs)
-    # axs.legend()
+    axs.legend()
     plt.show()
 
 def simulate_block_with_perturbed_frictions(frictions=0.5, control=None):
@@ -184,5 +185,5 @@ if __name__ == "__main__":
     ERM_folder = "data/IEEE_Access/sliding_block/ERM"
     ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM_CC"
     # run_simulation(ERM_dir=ERM_folder, ERM_CC_dir=ERM_CC_folder)
-    # run_simulation_beta_theta(folder="data/IEEE_Access/sliding_block/ERM_CC_Beta_theta_scaleOption2_tight")
-    run_simulation_fixed_CC()
+    run_simulation_beta_theta(folder="data/IEEE_Access/sliding_block/ERM_CC_Beta_theta_scaleOption2_tight")
+    # run_simulation_fixed_CC()

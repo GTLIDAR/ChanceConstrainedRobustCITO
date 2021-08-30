@@ -22,7 +22,7 @@ from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from IEEE_figures import plot_control_trajectories
 
-def run_block_trajopt_ERM(friction_multipler = 2*1e6, scale_option=1):
+def run_block_trajopt_ERM(friction_multipler = 1*1e6, scale_option=1):
     friction_sigmas = np.array([0.1, 0.3, 1])
     # friction_sigmas = np.array([ 0.3])
     friction_bias = 0.01
@@ -45,7 +45,7 @@ def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.
     # friction_sigmas = np.array([ 0.3])
     friction_multipler = 1e6
     friction_bias = 0.01
-    folder = folder+f"_scaleOption{scale_option}"
+    folder = folder + f"_scaleOption{scale_option}"
     if tight is True:
         folder = folder+"_tight"
     print(folder)
@@ -61,7 +61,7 @@ def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.
         cc_params=[beta, theta, sigma]
         run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                             distance_erm_params=distance_erm_params,
-                            uncertainty_option=1, cc_option=3, save_folder=folder, 
+                            uncertainty_option=3, cc_option=3, save_folder=folder, 
                             save_name=name, scale_option=scale_option, tight=tight)
     # plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
@@ -250,8 +250,12 @@ if __name__ == "__main__":
     # run_block_trajopt()
     # run_block_trajopt_ERM()
     # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=1)
-    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/CC",
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
+        beta=0.51, theta=0.51, scale_option=2, tight=False)
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
         beta=0.65, theta=0.65, scale_option=2, tight=False)
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
+        beta=0.9, theta=0.9, scale_option=2, tight=False)
     # betas = np.array([0.51, 0.6, 0.9])
     # thetas = np.array([0.51, 0.6, 0.9])
     # for beta in betas:

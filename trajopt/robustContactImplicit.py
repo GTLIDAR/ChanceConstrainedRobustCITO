@@ -50,8 +50,6 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         #   option 2: uncertainty from normal distance
         #   option 3: unvertainty from friction cone
         #   option 4: uncertainty from both normal distance And friction cone
-        
-        
         if self.erm_option is 1:
             print("Nominal case")
         elif self.erm_option is 2:
