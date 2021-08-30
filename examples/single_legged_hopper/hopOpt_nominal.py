@@ -12,8 +12,11 @@ from systems.timestepping import TimeSteppingMultibodyPlant
 from pydrake.solvers.snopt import SnoptSolver
 from systems.visualization import Visualizer
 import utilities as utils
-from plot_hopper import plot
+from examples.single_legged_hopper.plot_hopper import plot
 from pydrake.all import PiecewisePolynomial, RigidTransform
+import os
+
+basedir = os.path.join('examples/single_legged_hopper/nominal')
 # Create the hopper model with the default flat terrain
 _file = "systems/urdf/single_legged_hopper.urdf"
 plant = TimeSteppingMultibodyPlant(file= _file)
@@ -52,11 +55,13 @@ trajopt = ChanceConstrainedContactImplicit(plant=plant,
                                             # optionERM = uncertainty_option,
                                             # optionCC = cc_option,
                                             options = options)
+trajopt.force_scale = 20
 while slack is not 0:
     if slack > 1e-4:
         slack = slack/10
     else:
         slack = 0
+    savedir = os.path.join(basedir, f'slack_{slack:.0E}')
     # tolerance = tolerance/10
     print("iteration", i)
     print("Current slack is ", slack)
@@ -160,24 +165,30 @@ while slack is not 0:
     u = trajopt.reconstruct_input_trajectory(result)
     l = trajopt.reconstruct_reaction_force_trajectory(result)
     t = trajopt.get_solution_times(result)
+
+    # Save intermediate results
+    solndict = trajopt.result_to_dict(result)
+    utils.save(os.path.join(savedir, 'trajoptresults.pkl'), solndict)
+    utils.printProgramReport(result, prog=trajopt.prog, filename=os.path.join(savedir, 'report.txt'))
     # np.savetxt('data/single_legged_hopper/nominal_3/x{n}.txt'.format(n = i), x, fmt = '%1.3f')
     # np.savetxt('data/single_legged_hopper/nominal_3/u{n}.txt'.format(n = i), u, fmt = '%1.3f')
     # np.savetxt('data/single_legged_hopper/nominal_3/l{n}.txt'.format(n = i), l, fmt = '%1.3f')
     # np.savetxt('data/single_legged_hopper/nominal_3/t.txt'.format(n = i), t, fmt = '%1.3f')
     i += 1
+
 x = trajopt.reconstruct_state_trajectory(result)
 u = trajopt.reconstruct_input_trajectory(result)
 l = trajopt.reconstruct_reaction_force_trajectory(result)
 t = trajopt.get_solution_times(result)
 jl= result.GetSolution(trajopt.jl)
 s = result.GetSolution(trajopt.slacks)
-save_num = 9
-np.savetxt('data/single_legged_hopper/nominal_3/x_{n}.txt'.format(n = save_num), x, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/u_{n}.txt'.format(n = save_num), u, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/l_{n}.txt'.format(n = save_num), l, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/jl_{n}.txt'.format(n = save_num), jl, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/s_{n}.txt'.format(n = save_num), s, fmt = '%1.3f')
-np.savetxt('data/single_legged_hopper/nominal_3/t.txt', t, fmt = '%1.3f')
+# save_num = 9
+# np.savetxt('data/single_legged_hopper/nominal_3/x_{n}.txt'.format(n = save_num), x, fmt = '%1.3f')
+# np.savetxt('data/single_legged_hopper/nominal_3/u_{n}.txt'.format(n = save_num), u, fmt = '%1.3f')
+# np.savetxt('data/single_legged_hopper/nominal_3/l_{n}.txt'.format(n = save_num), l, fmt = '%1.3f')
+# np.savetxt('data/single_legged_hopper/nominal_3/jl_{n}.txt'.format(n = save_num), jl, fmt = '%1.3f')
+# np.savetxt('data/single_legged_hopper/nominal_3/s_{n}.txt'.format(n = save_num), s, fmt = '%1.3f')
+# np.savetxt('data/single_legged_hopper/nominal_3/t.txt', t, fmt = '%1.3f')
 plot(x,u, l, t) 
 x = PiecewisePolynomial.FirstOrderHold(t, x)
 vis = Visualizer(_file)

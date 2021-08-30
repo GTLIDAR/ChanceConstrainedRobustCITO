@@ -325,7 +325,7 @@ def printProgramReport(result, prog=None, filename=None):
             # Filter out the empty infeasible constraints
             infeasibles = result.GetInfeasibleConstraintNames(prog)
             infeas = [name.split("[")[0] for name in infeasibles]
-            report += f"Infeasible constriants: {set(infeas)}\n"
+            report += f"Infeasible constraints: {set(infeas)}\n"
     if filename is None:
         print(report)
     else:

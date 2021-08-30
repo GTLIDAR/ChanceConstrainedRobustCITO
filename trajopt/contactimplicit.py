@@ -67,6 +67,8 @@ class ContactImplicitDirectTranscription():
         self.mbf_ad = MBF_AD(self.plant_ad.multibody)
         # Create the mathematical program
         self.prog = MathematicalProgram()
+        # Set force scaling
+        self.force_scale = 1
         # Check for floating DOF
         self._check_floating_dof()
         # Add decision variables to the program
@@ -260,6 +262,8 @@ class ContactImplicitDirectTranscription():
         ind = np.cumsum([self.h.shape[1], self.x.shape[0], self.x.shape[0], self.u.shape[0], self._normal_forces.shape[0]])
         h, x1, x2, u, fN, fT = np.split(z, ind)
         u = u
+        fT = fT * self.force_scale
+        fN = fN * self.force_scale
         # fN = fN * h * 100
         # fT = fT * h * 100
         # Split configuration and velocity from state
@@ -457,8 +461,10 @@ class ContactImplicitDirectTranscription():
         if utraj is not None:
             self.prog.SetInitialGuess(self.u, utraj)
         if ltraj is not None:
+            ltraj[0:self.numN + self.numT,:] = ltraj[0:self.numN + self.numT,:] / self.force_scale
             self.prog.SetInitialGuess(self.l, ltraj)
         if jltraj is not None:
+            jltraj = jltraj / self.force_scale
             self.prog.SetInitialGuess(self.jl, jltraj)
         if straj is not None:
             self.prog.SetInitialGuess(self.slacks, straj)
@@ -592,13 +598,16 @@ class ContactImplicitDirectTranscription():
     def reconstruct_reaction_force_trajectory(self, soln):
         """Returns the reaction force trajectory from the solution"""
         t = self.get_solution_times(soln)
+        l = soln.GetSolution(self.l)
+        l[0:self.numN + self.numT,:] = l[0:self.numN + self.numT,:] * self.force_scale
         return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.l))
     
     def reconstruct_limit_force_trajectory(self, soln):
         """Returns the joint limit force trajectory from the solution"""
         if self.Jl is not None:
             t = self.get_solution_times(soln)
-            return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.jl))
+            jl = soln.GetSolution(self.jl) * self.force_scale
+            return PiecewisePolynomial.FirstOrderHold(t, jl)
         else:
             return None
             
@@ -661,7 +670,7 @@ class ContactImplicitDirectTranscription():
                     "control": u.vector_values(t), 
                     "force": f.vector_values(t),
                     "jointlimit": jl,
-                    # "slacks": s,
+                    #"slacks": s,
                     "solver": soln.get_solver_id().name(),
                     "success": soln.is_success(),
                     "exit_code": soln.get_solver_details().info,
