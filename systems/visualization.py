@@ -6,6 +6,8 @@ January 19, 2021
 """
 
 import numpy as np
+import os
+
 from pydrake.all import (PiecewisePolynomial, MultibodyPlant, SceneGraph, ClippingRange, DepthRange, DepthRenderCamera, RenderCameraCore, RenderLabel, MakeRenderEngineVtk, RenderEngineVtkParams, TrajectorySource, MultibodyPositionToGeometryPose, Rgba, RoleAssign)
 from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform, RollPitchYaw
@@ -15,8 +17,7 @@ from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.meshcat_visualizer import ConnectMeshcatVisualizer
 from pydrake.systems.sensors import CameraInfo, RgbdSensor
 
-from utilities import FindResource
-
+from utilities import FindResource, find_filepath_recursive, alphanumeric_sort, load
 
 class Visualizer():
     def __init__(self, urdf):
@@ -169,19 +170,23 @@ def zero_pad_rows(val, totalrows):
     else:
         return val
 
-
-
-# if __name__ == "__main__":
-#    file = 'systems/A1/A1_description/urdf/a1_no_collision.urdf'
-#    vis = Visualizer(file)
-#    vis.visualize_trajectory()
+# Batch visualization methods
+def batch_visualize(modelclass, directory, targetfile='trajoptresults.pkl'):
+    """Make several visualizations of the same model, using data stored somewhere in the directory"""
+    # Get all file locations
+    paths = [path for path in find_filepath_recursive(directory, targetfile)]
+    paths = alphanumeric_sort(paths)
+    # Make a visualization for each file
+    for path in paths:
+        file = os.path.join(path, targetfile)
+        print(f"Visualizing {file}")
+        data = load(file)
+        traj = PiecewisePolynomial.FirstOrderHold(data['time'], data['state'])
+        modelclass.visualize(traj)
+    # Finished
+    print('Finished')
 
 if __name__ == "__main__":
-   file = "systems/urdf/single_legged_hopper.urdf"
-
-   angle = 0.5 
-   height = np.cos(0.5) * 2
-    # Add initial and final state
-   x0 = np.array([0, height, -angle, 2*angle, -angle, 0, 0, 0, 0, 0])
+   file = 'systems/A1/A1_description/urdf/a1_no_collision.urdf'
    vis = Visualizer(file)
    vis.visualize_trajectory()

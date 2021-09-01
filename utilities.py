@@ -1,9 +1,10 @@
-import os
+import os, errno
 from sys import exit
 from pydrake.autodiffutils import AutoDiffXd
 from matplotlib import pyplot as plt
 import pickle
 import numpy as np
+import re
 
 SNOPT_DECODER = {
     0: "finished successfully",
@@ -41,7 +42,7 @@ SNOPT_DECODER = {
     141: "wrong number of basic variables",
     142: "error in basis package"
 }
-
+#TODO: Add "save_and_close" to MathProgIterationPrinter for saving cost figure
 class MathProgIterationPrinter():
     def __init__(self, prog = None, display='terminal'):
         """
@@ -52,9 +53,11 @@ class MathProgIterationPrinter():
         """
         self._prog = prog
         self.iteration = 0
+        self._thresh = 1e-6
+        self.fig = None
         self.display_func = self._get_display_func(display)
         self.title_iter = 50 #Print titles to terminal every title_iter iterations
-
+        
     def __call__(self, x):
         costs = self.calc_costs(x)
         cstrs = self.calc_constraints(x)
@@ -73,6 +76,18 @@ class MathProgIterationPrinter():
             return self.print_to_terminal_and_figure
         else:
             raise ValueError(f"Display {display} is not a supported option. Choose 'terminal', 'figure', or 'all'")
+
+    def reset(self):
+        """
+        Reset the iteration printer.
+            If the previous figure hasn't been closed, close it
+            Create a new figure if necessary
+            Reset the iteration counter to zero
+        """
+        # Reset iteration counter
+        self.iteration = 0
+        if self.fig is not None:
+            self.figure_setup()
 
     def calc_costs(self, x):
         """ 
@@ -153,47 +168,23 @@ class MathProgIterationPrinter():
 
     def print_to_figure(self, costs, cstrs):
         """ Print costs and constraints to a figure window"""
-        
+        # kEps = np.finfo(float).eps
+        # kExp = int(np.log10(kEps)) + 2  # Set the floor to 100 times machine precision
         # Note: Initialize the lines
         if self.iteration == 1:
-            sum_val = 0
             for name, value in costs.items():
-                
-                if name == "FrictionConeERMCost":
-                    self.cost_lines[name] = self.axs[0].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
-                elif name == "ControlCost":
-                    sum_val += value
-                elif name == "StateCost":
-                    name_c = "Control & State Cost"
-                    sum_val += value
-                    self.cost_lines[name_c] = self.axs[0].semilogy([self.iteration], [sum_val], linewidth=1.5, label=name_c)[0]
-
+                self.cost_lines[name] = self.axs[0].plot([self.iteration], [value], linewidth=1.5, label=name)[0]
             for name, value in cstrs.items():
-                self.cstr_lines[name] = self.axs[1].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
+                self.cstr_lines[name] = self.axs[1].plot([self.iteration], [value], linewidth=1.5, label=name)[0]
             self.axs[0].legend()
             self.axs[1].legend()
         else:
             ymax = self.axs[0].get_ylim()[1]
-            sum_val = 0
             for name, value in costs.items():
-                # print(name)
-                # plt.pause(1)
-                
-                if name == "FrictionConeERMCost":
-                    x = np.append(self.cost_lines[name].get_xdata(), self.iteration)
-                    y = np.append(self.cost_lines[name].get_ydata(), value)
-                    self.cost_lines[name].set_data((x, y))
-                    ymax = max(value, ymax)
-                elif name == "ControlCost":
-                    sum_val += value
-                elif name == "StateCost":
-                    name_c = "Control & State Cost"
-                    sum_val += value
-                    # print(sum_val)
-                    x = np.append(self.cost_lines[name_c].get_xdata(), self.iteration)
-                    y = np.append(self.cost_lines[name_c].get_ydata(), sum_val)
-                    self.cost_lines[name_c].set_data((x, y))
-                    ymax = max(sum_val, ymax)
+                x = np.append(self.cost_lines[name].get_xdata(), self.iteration)
+                y = np.append(self.cost_lines[name].get_ydata(), value)
+                self.cost_lines[name].set_data((x, y))
+                ymax = max(value, ymax)
             #Set new axis limits
             self.axs[0].set_xlim([1, self.iteration])
             self.axs[0].set_ylim([0, ymax])
@@ -216,14 +207,38 @@ class MathProgIterationPrinter():
     def figure_setup(self):
         self.fig, self.axs = plt.subplots(2,1)
         self.axs[0].set_ylabel('Cost')
+        self.axs[0].set_yscale('symlog', linthreshy=self._thresh)
+        self.axs[0].grid(True)
         self.axs[1].set_ylabel('Constraint Violation')
         self.axs[1].set_xlabel('Iteration')
+        self.axs[1].set_yscale('symlog', linthreshy=self._thresh)
+        self.axs[1].grid(True)
         self.cost_lines = {}
         self.cstr_lines = {}
 
     def print_to_terminal_and_figure(self, costs, cstrs):
         self.print_to_terminal(costs, cstrs)
         self.print_to_figure(costs, cstrs)
+
+    def save_and_close(self, savename="CostsAndConstraints.png"):
+        """Save and close the figure created by MathematicalProgram's VisualizeCallback function"""
+        if self.fig is not None:
+            self.fig.savefig(savename, dpi = self.fig.dpi)
+            plt.close(self.fig)
+
+    def save_and_clear(self, savename="CostsAndConstraints.png"):
+        if self.fig is not None:
+            self.fig.savefig(savename, dpi=self.fig.dpi)
+            self.axs[0].cla()
+            self.axs[1].cla()
+            self.axs[0].set_ylabel('Cost')
+            self.axs[0].set_yscale('symlog', linthreshy=self._thresh)
+            self.axs[0].grid(True)
+            self.axs[1].set_ylabel('Constraint Violation')
+            self.axs[1].set_xlabel('Iteration')
+            self.axs[1].set_yscale('symlog', linthreshy=self._thresh)
+            self.axs[1].grid(True)
+            self.iteration = 0
 
     @property
     def title_iter(self):
@@ -235,6 +250,14 @@ class MathProgIterationPrinter():
             self._title_iter = val
         else:
             raise ValueError(f"title_iter must be a nonnegative integer")
+
+def append_filename(name, append_str):
+    if name is None:
+        return None
+    else:
+        parts = name.split(".")
+        parts[0] += append_str
+        return ".".join(parts)
 
 def save(filename, data):
     """ pickle data in the specified filename """
@@ -252,7 +275,7 @@ def load(filename):
 
 def FindResource(filename):
     if not os.path.isfile(filename):
-        exit(f"{filename} not found")
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
     else:
         return os.path.abspath(filename)
     
@@ -285,9 +308,7 @@ def CheckProgram(prog):
         # Evaluate the constraint with floats
         try:
             xs = [1.]*len(cstr.variables())
-            # print(cstr.evaluator().get_description())
             cstr.evaluator().Eval(xs)
-            
         except RuntimeError as err:
             status = False
             print(f"Evaluating {cstr.evaluator().get_description()} with floats produces a RuntimeError")
@@ -311,12 +332,12 @@ def GetKnotsFromTrajectory(trajectory):
     values = trajectory.vector_values(breaks)
     return (breaks, values)
 
-def printProgramReport(result, prog=None, filename=None):
+def printProgramReport(result, prog=None, terminal=True, filename=None, verbose=False):
     """print out information about the result of the mathematical program """
     # Print out general information
-    report = f"Optimization successful? {result.is_success()}\n"
+    report = f"Solved with {result.get_solver_id().name()}\n"
+    report += f"Optimization successful? {result.is_success()}\n"
     report += f"Optimal cost = {result.get_optimal_cost()}\n"
-    report += f"Solved with {result.get_solver_id().name()}\n"
     # Print out SNOPT specific information
     if result.get_solver_id().name() == "SNOPT/fortran":
         exit_code = result.get_solver_details().info
@@ -326,11 +347,30 @@ def printProgramReport(result, prog=None, filename=None):
             infeasibles = result.GetInfeasibleConstraintNames(prog)
             infeas = [name.split("[")[0] for name in infeasibles]
             report += f"Infeasible constraints: {set(infeas)}\n"
-    if filename is None:
+    # Print out verbose cost and constraint information
+    if verbose:
+        printer = MathProgIterationPrinter(prog)
+        all_vars = result.GetSolution(prog.decision_variables())
+        costs = printer.calc_costs(all_vars)
+        cstrs = printer.calc_constraints(all_vars)
+        report += "Individual Costs: \n"
+        for key in costs:
+            report += f"{key}: \t {costs[key]:.4E}\n"
+        report += "\nConstraint Violations: \n"
+        for key in cstrs:
+            report += f"{key}: \t {cstrs[key]:.4E}\n"
+    # Print the report to terminal
+    if terminal:
         print(report)
-    else:
+    #Save to file 
+    if filename is not None:
+        dir = os.path.dirname(filename)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         with open(filename, "w") as file:
             file.write(report)
+    #Return the report as a text string
+    return report
 
 def quat2rpy(quat):
     """
@@ -350,7 +390,7 @@ def quat2rpy(quat):
                         1-2*(quat[2,:]**2 + quat[3,:]**2))
     return rpy
 
-def plot_complementarity(ax, y1, y2, label1, label2):
+def plot_complementarity(ax, x, y1, y2, label1, label2):
     """
         Plots two traces in the same axes using different y-axes. Aligns the y-axes at zero
 
@@ -361,15 +401,16 @@ def plot_complementarity(ax, y1, y2, label1, label2):
             label1: The y-axis label for the first sequence, y1
             label2: The y-axis label for the second sequence, y2
     """
-    x = range(0, len(y1))
+    if x is None:
+        x = range(0, len(y1))
     color = "tab:red"
     ax.set_ylabel(label1, color = color)
-    ax.plot(x, y1, color=color, linewidth=1.5)
+    ax.plot(x, y1, "-", color=color, linewidth=1.5)
     # Create the second axis 
     ax2 = ax.twinx()
     color = "tab:blue"
     ax2.set_ylabel(label2, color=color)
-    ax2.plot(x, y2, color=color, linewidth=1.5)
+    ax2.plot(x, y2, "-", color=color, linewidth=1.5)
     # Align the axes at zero
     align_axes(ax,ax2)
 
@@ -390,3 +431,30 @@ def align_axes(ax, ax2):
     new_frac = np.array([min(lim_frac[:,0]), max(lim_frac[:,1])])
     ax.set_ylim(lim_range[0]*new_frac)
     ax2.set_ylim(lim_range[1]*new_frac)
+
+def getDualSolutionDict(prog, result):
+    """ Returns the dual solutions of all constraints in a dictionary"""
+    duals = {}
+    # Get the dual solutions and add them to a dictionary
+    for cstr in prog.GetAllConstraints():
+        name = cstr.evaluator().get_description()
+        dual = result.GetDualSolution(cstr)
+        if name in duals:
+            duals[name].append(dual)
+        else:
+            duals[name] = [dual]
+    # Stack all repeating duals along the rows
+    for name in duals.keys():
+        duals[name] = np.row_stack(duals[name])
+    return duals
+
+def alphanumeric_sort(text_list):
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(text_list, key=alphanum_key)
+
+def find_filepath_recursive(directory, target_file):
+    for path, dir, files in os.walk(directory):
+        for file in files:
+            if file == "trajoptresults.pkl":
+                yield path
