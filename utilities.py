@@ -153,47 +153,22 @@ class MathProgIterationPrinter():
 
     def print_to_figure(self, costs, cstrs):
         """ Print costs and constraints to a figure window"""
-        
+
         # Note: Initialize the lines
         if self.iteration == 1:
-            sum_val = 0
             for name, value in costs.items():
-                
-                if name == "FrictionConeERMCost":
-                    self.cost_lines[name] = self.axs[0].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
-                elif name == "ControlCost":
-                    sum_val += value
-                elif name == "StateCost":
-                    name_c = "Control & State Cost"
-                    sum_val += value
-                    self.cost_lines[name_c] = self.axs[0].semilogy([self.iteration], [sum_val], linewidth=1.5, label=name_c)[0]
-
+                self.cost_lines[name] = self.axs[0].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
             for name, value in cstrs.items():
                 self.cstr_lines[name] = self.axs[1].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
             self.axs[0].legend()
             self.axs[1].legend()
         else:
             ymax = self.axs[0].get_ylim()[1]
-            sum_val = 0
             for name, value in costs.items():
-                # print(name)
-                # plt.pause(1)
-                
-                if name == "FrictionConeERMCost":
-                    x = np.append(self.cost_lines[name].get_xdata(), self.iteration)
-                    y = np.append(self.cost_lines[name].get_ydata(), value)
-                    self.cost_lines[name].set_data((x, y))
-                    ymax = max(value, ymax)
-                elif name == "ControlCost":
-                    sum_val += value
-                elif name == "StateCost":
-                    name_c = "Control & State Cost"
-                    sum_val += value
-                    # print(sum_val)
-                    x = np.append(self.cost_lines[name_c].get_xdata(), self.iteration)
-                    y = np.append(self.cost_lines[name_c].get_ydata(), sum_val)
-                    self.cost_lines[name_c].set_data((x, y))
-                    ymax = max(sum_val, ymax)
+                x = np.append(self.cost_lines[name].get_xdata(), self.iteration)
+                y = np.append(self.cost_lines[name].get_ydata(), value)
+                self.cost_lines[name].set_data((x, y))
+                ymax = max(value, ymax)
             #Set new axis limits
             self.axs[0].set_xlim([1, self.iteration])
             self.axs[0].set_ylim([0, ymax])
@@ -285,9 +260,7 @@ def CheckProgram(prog):
         # Evaluate the constraint with floats
         try:
             xs = [1.]*len(cstr.variables())
-            # print(cstr.evaluator().get_description())
             cstr.evaluator().Eval(xs)
-            
         except RuntimeError as err:
             status = False
             print(f"Evaluating {cstr.evaluator().get_description()} with floats produces a RuntimeError")
@@ -325,7 +298,7 @@ def printProgramReport(result, prog=None, filename=None):
             # Filter out the empty infeasible constraints
             infeasibles = result.GetInfeasibleConstraintNames(prog)
             infeas = [name.split("[")[0] for name in infeasibles]
-            report += f"Infeasible constriants: {set(infeas)}\n"
+            report += f"Infeasible constraints: {set(infeas)}\n"
     if filename is None:
         print(report)
     else:
@@ -350,7 +323,7 @@ def quat2rpy(quat):
                         1-2*(quat[2,:]**2 + quat[3,:]**2))
     return rpy
 
-def plot_complementarity(ax, y1, y2, label1, label2):
+def plot_complementarity(ax, x, y1, y2, label1, label2):
     """
         Plots two traces in the same axes using different y-axes. Aligns the y-axes at zero
 
@@ -361,15 +334,16 @@ def plot_complementarity(ax, y1, y2, label1, label2):
             label1: The y-axis label for the first sequence, y1
             label2: The y-axis label for the second sequence, y2
     """
-    x = range(0, len(y1))
+    if x is None:
+        x = range(0, len(y1))
     color = "tab:red"
     ax.set_ylabel(label1, color = color)
-    ax.plot(x, y1, color=color, linewidth=1.5)
+    ax.plot(x, y1, "-", color=color, linewidth=1.5)
     # Create the second axis 
     ax2 = ax.twinx()
     color = "tab:blue"
     ax2.set_ylabel(label2, color=color)
-    ax2.plot(x, y2, color=color, linewidth=1.5)
+    ax2.plot(x, y2, "-", color=color, linewidth=1.5)
     # Align the axes at zero
     align_axes(ax,ax2)
 
@@ -390,3 +364,19 @@ def align_axes(ax, ax2):
     new_frac = np.array([min(lim_frac[:,0]), max(lim_frac[:,1])])
     ax.set_ylim(lim_range[0]*new_frac)
     ax2.set_ylim(lim_range[1]*new_frac)
+
+def getDualSolutionDict(prog, result):
+    """ Returns the dual solutions of all constraints in a dictionary"""
+    duals = {}
+    # Get the dual solutions and add them to a dictionary
+    for cstr in prog.GetAllConstraints():
+        name = cstr.evaluator().get_description()
+        dual = result.GetDualSolution(cstr)
+        if name in duals:
+            duals[name].append(dual)
+        else:
+            duals[name] = [dual]
+    # Stack all repeating duals along the rows
+    for name in duals.keys():
+        duals[name] = np.row_stack(duals[name])
+    return duals
