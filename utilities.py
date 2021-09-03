@@ -311,12 +311,14 @@ def GetKnotsFromTrajectory(trajectory):
     values = trajectory.vector_values(breaks)
     return (breaks, values)
 
-def printProgramReport(result, prog=None, filename=None):
+def printProgramReport(result, prog=None, solveTime=None, filename=None):
     """print out information about the result of the mathematical program """
     # Print out general information
     report = f"Optimization successful? {result.is_success()}\n"
     report += f"Optimal cost = {result.get_optimal_cost()}\n"
     report += f"Solved with {result.get_solver_id().name()}\n"
+    if solveTime is not None:
+        report += f"Elapsed time: {solveTime}\n"
     # Print out SNOPT specific information
     if result.get_solver_id().name() == "SNOPT/fortran":
         exit_code = result.get_solver_details().info

@@ -112,5 +112,8 @@ def barplot():
 
 if __name__ == "__main__":
     # error_plot_test()
-    barplot()
+    # barplot()
+    filename = 'data/IEEE_Access/sliding_block/ERM+CC_scaleOption2/reports/block_erm_sigma1.000e-02_beta6.500e-01_theta6.500e-01_report.txt'
+    with open(filename, "w") as file:
+            file.write('hello')
 

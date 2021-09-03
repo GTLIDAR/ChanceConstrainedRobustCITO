@@ -40,15 +40,15 @@ def run_block_trajopt_ERM(friction_multipler = 1*1e6, scale_option=1):
                             save_name=name, scale_option=scale_option)
     plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
-def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.6, tight=False):
+def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.6, tight=False,
+                            ermOption=1, ccOption=1):
     friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
-    # friction_sigmas = np.array([ 0.3])
+    # friction_sigmas = np.array([ 0.01])
     friction_multipler = 1e6
     friction_bias = 0.01
-    folder = folder + f"_scaleOption{scale_option}"
+    # folder = folder + f"_scaleOption2"
     if tight is True:
         folder = folder+"_tight"
-    print(folder)
     distance_variance = 0.1
     distance_multiplier = 1e6
     distance_erm_params = np.array([distance_variance, distance_multiplier])
@@ -56,12 +56,19 @@ def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.
         friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
         print(f"Friction Variance is {sigma}")
         # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
-        name = f"block_cc_sigma{sigma}_beta{beta}_theta{theta}"
-
+        name = 'block'
+        if ermOption is not 1:
+            name = name + '_erm'
+        if ccOption is not 1:
+            name = name + '_cc'
+        sigma_str = "{:.2e}".format(sigma)
+        beta_str = "{:.2e}".format(beta)
+        theta_str = "{:.2e}".format(theta)
+        name = name+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str
         cc_params=[beta, theta, sigma]
         run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                             distance_erm_params=distance_erm_params,
-                            uncertainty_option=3, cc_option=3, save_folder=folder, 
+                            uncertainty_option=ermOption, cc_option=ccOption, save_folder=folder, 
                             save_name=name, scale_option=scale_option, tight=tight)
     # plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
@@ -72,8 +79,6 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                         cc_option = 1,
                         save_folder = None,
                         save_name = None, scale_option=1, tight=False):
-    # trajopt = setup_nominal_block_trajopt()
-    # trajopt = setup_robust_block_trajopt()
     plant, context = create_block_plant()
     options = setup_options()
     trajopt = ChanceConstrainedContactImplicit(plant=plant,
@@ -88,7 +93,6 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
                                             optionCC = cc_option,
                                             options=options
                                             )
-    # trajopt.enable_cost_display(display='figure')
     # Set the boundary constraints
     x0, xf = create_boundary_constraints()
     set_boundary_constraints(trajopt, x0, xf)
@@ -109,23 +113,14 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     if not utils.CheckProgram(trajopt.prog):
         quit()
     # Solve the problem
-    result = solve_block_trajopt(trajopt)
+    result = solve_block_trajopt(trajopt, save_folder, save_name)
     soln = trajopt.result_to_dict(result)
     # Plot results
     # plot_block_trajectories(trajopt, result)
     # Save
-    save_block_trajectories(soln, folder = save_folder, name =save_name)
-    # # Tighten snopt options
-    set_tight_snopt_options(trajopt)
-    # initialize_from_previous(trajopt, soln)
-    # # Run optimization
-    # result = solve_block_trajopt(trajopt)
-    # soln = trajopt.result_to_dict(result)
-    # # Plot results
-    # plot_block_trajectories(trajopt, result)
-    # # Save
-    # save_block_trajectories(soln, folder = 'data/IEEE_Access/sliding_block', name = 'block_trajopt_nominal_tight.pkl')
+    save_block_trajectories(soln, folder=save_folder, name=save_name)
 
+    
 def create_block_plant():
     """ Create block plant"""
     plant = Block()
@@ -215,7 +210,7 @@ def set_tight_snopt_options(trajopt):
 def initialize_from_previous(trajopt, soln):
     trajopt.set_initial_guess(xtraj=soln['state'], utraj=soln['control'], ltraj=soln['force'])
 
-def solve_block_trajopt(trajopt):
+def solve_block_trajopt(trajopt, folder, name):
     solver = SnoptSolver()
     prog = trajopt.get_program()
     # Solve the problem
@@ -223,16 +218,19 @@ def solve_block_trajopt(trajopt):
     start = timeit.default_timer()
     result = solver.Solve(prog)
     stop = timeit.default_timer()
-    print(f"Elapsed time: {stop-start}")
-    utils.printProgramReport(result, prog)
+    time = stop - start
+    print(f"Elapsed time: {time}")
+    folder = folder+'/reports'
+    filename = folder +'/' +name+'_report.txt'
+    utils.printProgramReport(result, prog, time, filename=filename)
     return result
 
 def plot_block_trajectories(trajopt, result):
     xtraj, utraj, ftraj, _ = trajopt.reconstruct_all_trajectories(result)
     trajopt.plant_f.plot_trajectories(xtraj, utraj, ftraj)
 
-def save_block_trajectories(soln = None, folder = "data/IEEE_Access", name="block_trajopt.pkl"):
-    file = folder + '/' + name
+def save_block_trajectories(soln = None, folder=None, name=None):
+    file =folder+'/'+name+'.pkl'
     utils.save(file, soln)
 
 def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
@@ -245,22 +243,23 @@ def initialize_from_saved_trajectories(trajopt, folder = None, name=None):
     l_init = np.loadtxt('data/slidingblock/warm_start/l.txt')
     trajopt.set_initial_guess(xtraj=x_init, utraj=u_init, ltraj=l_init)
 
+def ERM_CC_comparison():
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_v_ERMCC",
+        beta=0.65, theta=0.65, scale_option=2, tight=False, ermOption=3, ccOption=3)
+    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_v_ERMCC",
+        beta=0.65, theta=0.65, scale_option=2, tight=False, ermOption=3, ccOption=1)
+
+def beta_theta():
+    betas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
+    thetas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
+    for beta in betas:
+        for theta in thetas:
+            run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/beta_theta", 
+                beta=beta, theta=theta, tight=False, scale_option=2, ermOption=3, ccOption=3)
 
 if __name__ == "__main__":
-    # run_block_trajopt()
-    # run_block_trajopt_ERM()
-    # run_block_trajopt_ERM_CC(friction_multipler=1e6, scale_option=1)
-    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
-        beta=0.51, theta=0.51, scale_option=2, tight=False)
-    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
-        beta=0.65, theta=0.65, scale_option=2, tight=False)
-    run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM+CC",
-        beta=0.9, theta=0.9, scale_option=2, tight=False)
-    # betas = np.array([0.51, 0.6, 0.9])
-    # thetas = np.array([0.51, 0.6, 0.9])
-    # for beta in betas:
-    #     for theta in thetas:
-    #         run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_CC_Beta_theta", 
-    #             beta=beta, theta=theta, tight=True, scale_option=2)
-    # run_block_trajopt_ERM(friction_multipler=5e6)
-    # ref_soln = utils.load('data/IEEE_Access/sliding_block/block_trajopt_nominal_tight.pkl')
+    # ERM_CC_comparison()
+    # beta_theta_solvetimes()
+    # run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_v_ERMCC",
+    #     beta=0.65, theta=0.65, scale_option=1, tight=False, ermOption=3, ccOption=1)
+    beta_theta()

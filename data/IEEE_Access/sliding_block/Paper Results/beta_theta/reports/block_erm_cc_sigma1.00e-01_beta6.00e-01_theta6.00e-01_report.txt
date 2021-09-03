@@ -1,0 +1,6 @@
+Optimization successful? True
+Optimal cost = 744064.603862638
+Solved with SNOPT/fortran
+Elapsed time: 28.984158799998113
+SNOPT Exit Status 1: optimality conditions satisfied
+Infeasible constriants: {'friction_cone'}

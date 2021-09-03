@@ -1,0 +1,6 @@
+Optimization successful? True
+Optimal cost = 3877353.4855536926
+Solved with SNOPT/fortran
+Elapsed time: 67.59293550000439
+SNOPT Exit Status 1: optimality conditions satisfied
+Infeasible constriants: {'sliding_velocity'}
