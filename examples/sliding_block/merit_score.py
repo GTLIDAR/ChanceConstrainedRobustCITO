@@ -16,10 +16,11 @@ markersize = 10
 linewidth = 3
 sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1.0])
 ERM_folder = "data/IEEE_Access/sliding_block/ERM_tight"
+ERM_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM"
 # ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM_CC"
 # ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM+CC_scaleOption2"
-ERM_CC_folder = "data/IEEE_Access/sliding_block/beta_theta"
-reference = 'data/IEEE_Access/sliding_block/block_trajopt.pkl'
+ERM_CC_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM+CC"
+reference = 'data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl'
 betas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
 thetas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
 
@@ -80,28 +81,32 @@ def calculate_robustness(filename=None):
 def robustness_comparision():
     '''This method generates the robustness comparision figure'''
     fig, axs = plt.subplots(1,1)
-    erm_robustness = np.zeros(sigmas.shape)
-    erm_cc_robustness_51 = np.zeros(sigmas.shape)
-    erm_cc_robustness_65 = np.zeros(sigmas.shape)
-    erm_cc_robustness_90 = np.zeros(sigmas.shape)
     ref_robustness = np.zeros(sigmas.shape)
-    i=0
-    for sigma in sigmas:
-        erm_filename = ERM_folder + '/' + f"block_erm_{sigma}"
-        ERM_CC_51_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.51_theta0.51'
-        ERM_CC_65_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.65_theta0.65'
-        ERM_CC_90_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.9_theta0.9'
-        ref_robustness[i] = calculate_robustness(filename=reference)
-        erm_robustness[i] = calculate_robustness(filename=erm_filename)
-        erm_cc_robustness_51[i] = calculate_robustness(filename=ERM_CC_51_filename)
-        erm_cc_robustness_65[i] = calculate_robustness(filename=ERM_CC_65_filename)
-        erm_cc_robustness_90[i] = calculate_robustness(filename=ERM_CC_90_filename)
-        i=i+1
+    erm_robustness = np.zeros(sigmas.shape)
+    # make the dictionary to score merit scores
+    erm_cc_robustness = {}
+    for beta in betas:
+        for theta in thetas:
+            erm_cc_robustness[f'beta{beta}theta{theta}'] = np.zeros(sigmas.shape)
     x = np.arange(len(sigmas))
+    i = 0
+    for sigma in sigmas:
+        sigma_str = "{:.2e}".format(sigma)
+        ERM_filename = ERM_folder+'/'+'block_erm_sigma'+sigma_str+'.pkl'
+        ref_robustness[i] = calculate_robustness(filename=reference)
+        erm_robustness[i] = calculate_robustness(filename=ERM_filename)
+        for beta in betas:
+            for theta in thetas:
+                beta_str = "{:.2e}".format(beta)
+                theta_str = "{:.2e}".format(theta)
+                erm_cc_filename = ERM_CC_folder+'/'+'block_erm_cc'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
+                erm_cc_cstr = get_constraints(filename=erm_cc_filename)
+                erm_cc_robustness[f'beta{beta}theta{theta}'][i] = calculate_robustness(filename=erm_cc_filename)
+        i=i+1
+    for beta in betas:
+        for theta in thetas:
+            axs.plot(x, erm_cc_robustness[f'beta{beta}theta{theta}'], '-^', markersize=markersize, linewidth=linewidth, label=f'beta{beta}theta{theta}')
     axs.plot(x, erm_robustness, '-bs', markersize = markersize,linewidth=linewidth, label = 'ERM')
-    axs.plot(x, erm_cc_robustness_51, '-g^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta, theta = 0.51')
-    axs.plot(x, erm_cc_robustness_65, '-r^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta, theta = 0.65')
-    axs.plot(x, erm_cc_robustness_90, '-m^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta, theta = 0.90')
     axs.plot(x, ref_robustness, '-ko', markersize = markersize,linewidth=linewidth, label = 'Reference')
     axs.set_yscale('symlog')
     plt.xticks(x, tuple(sigmas))
@@ -161,57 +166,36 @@ def merit_score_comparison():
     This method generates the figure for merit score comparison btween nominal, ERM and ERM+CC for
     only the friction cone constraint violations. 
     '''
-    erm_merit_scores = np.zeros(sigmas.shape)
-    erm_cc_merit_scores_51 = np.zeros(sigmas.shape)
-    erm_cc_merit_scores_65 = np.zeros(sigmas.shape)
-    erm_cc_merit_scores_90 = np.zeros(sigmas.shape)
     ref_merit_scores = np.zeros(sigmas.shape)
+    erm_merit_scores = np.zeros(sigmas.shape)
     # make the dictionary to score merit scores
     erm_cc_scores = {}
     for beta in betas:
         for theta in thetas:
             erm_cc_scores[f'beta{beta}theta{theta}'] = np.zeros(sigmas.shape)
-    
     x = np.arange(len(sigmas))
     fig, axs = plt.subplots(1,1)
     i = 0
     for sigma in sigmas:
-        ERM_filename = ERM_folder + '/'+ f'block_erm_{sigma}'
+        sigma_str = "{:.2e}".format(sigma)
+        ERM_filename = ERM_folder+'/'+'block_erm_sigma'+sigma_str+'.pkl'
         ref_cstr = get_constraints(filename=reference)
         ERM_cstr = get_constraints(filename=ERM_filename)
         ref_merit_scores[i] = calculate_merit_score(ref_cstr['friction_cone'], key='friction_cone')
         erm_merit_scores[i] = calculate_merit_score(ERM_cstr['friction_cone'], key='friction_cone')
         for beta in betas:
             for theta in thetas:
-                sigma_str = "{:.2e}".format(sigma)
                 beta_str = "{:.2e}".format(beta)
                 theta_str = "{:.2e}".format(theta)
                 # erm_cc_scores['']
-                erm_cc_filname = ERM_CC_folder+'/'+'block_erm_cc'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
-                erm_cc_cstr = get_constraints(filename=erm_cc_filname)
+                erm_cc_filename = ERM_CC_folder+'/'+'block_erm_cc'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
+                erm_cc_cstr = get_constraints(filename=erm_cc_filename)
                 erm_cc_scores[f'beta{beta}theta{theta}'][i] = calculate_merit_score(erm_cc_cstr['friction_cone'], key='friction_cone')
-
-        # ERM_CC_51_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.51_theta0.51'
-        # ERM_CC_65_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.65_theta0.65'
-        # ERM_CC_90_filename = ERM_CC_folder + '/'+ f'block_cc_sigma{sigma}_beta0.9_theta0.9'
-        # 
-        # ERM_CC_51_cstr = get_constraints(filename=ERM_CC_51_filename)
-        # ERM_CC_65_cstr = get_constraints(filename=ERM_CC_65_filename)
-        # ERM_CC_90_cstr = get_constraints(filename=ERM_CC_90_filename)
-        
-        
-        # erm_cc_merit_scores_51[i] = calculate_merit_score(ERM_CC_51_cstr['friction_cone'], key='friction_cone')
-        # erm_cc_merit_scores_65[i] = calculate_merit_score(ERM_CC_65_cstr['friction_cone'], key='friction_cone')
-        # erm_cc_merit_scores_90[i] = calculate_merit_score(ERM_CC_90_cstr['friction_cone'], key='friction_cone')
         i=i+1
     for beta in betas:
         for theta in thetas:
             axs.plot(x, erm_cc_scores[f'beta{beta}theta{theta}'], '-^', markersize=markersize, linewidth=linewidth, label=f'beta{beta}theta{theta}')
-
     axs.plot(x, erm_merit_scores, '-bs', markersize = markersize,linewidth=linewidth, label = 'ERM')
-    # axs.plot(x, erm_cc_merit_scores_51, '-g^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta, theta = 0.51')
-    # axs.plot(x, erm_cc_merit_scores_65, '-r^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta,  theta = 0.65')
-    # axs.plot(x, erm_cc_merit_scores_90, '-m^', markersize = markersize,linewidth=linewidth, label = 'ERM+CC, beta, theta = 0.90')
     axs.plot(x, ref_merit_scores, '-ko', markersize = markersize,linewidth=linewidth, label = 'Reference')
     axs.set_yscale('symlog')
     plt.xticks(x, tuple(sigmas))

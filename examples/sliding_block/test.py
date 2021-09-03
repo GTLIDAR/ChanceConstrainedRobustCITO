@@ -4,6 +4,9 @@ from scipy.stats import rv_continuous as rv
 from scipy.stats import rv_discrete as ds
 from math import *
 import matplotlib.pyplot as plt
+import utilities as utils
+import pickle
+
 def _pdf ( x, mean, sd):
     prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
     return prob_density
@@ -110,10 +113,19 @@ def barplot():
     ax.set_yscale('log')
     plt.show()
 
+def convert_to_pkl():
+    x = np.loadtxt('data/IEEE_Access/sliding_block/PaperResults/warm_start/x.txt')
+    u = np.loadtxt('data/IEEE_Access/sliding_block/PaperResults/warm_start/u.txt')
+    t = np.loadtxt('data/IEEE_Access/sliding_block/PaperResults/warm_start/t.txt')
+    l = np.loadtxt('data/IEEE_Access/sliding_block/PaperResults/warm_start/l.txt')
+    data = {"time": t,
+                "state": x,
+                "control": u,
+                "force": l
+    }
+    with open('data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl', "wb") as output:
+        pickle.dump(data, output, pickle.HIGHEST_PROTOCOL)
+
 if __name__ == "__main__":
-    # error_plot_test()
-    # barplot()
-    filename = 'data/IEEE_Access/sliding_block/ERM+CC_scaleOption2/reports/block_erm_sigma1.000e-02_beta6.500e-01_theta6.500e-01_report.txt'
-    with open(filename, "w") as file:
-            file.write('hello')
+    convert_to_pkl()
 
