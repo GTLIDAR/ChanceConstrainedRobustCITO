@@ -463,6 +463,12 @@ class ContactImplicitDirectTranscription():
         if straj is not None:
             self.prog.SetInitialGuess(self.slacks, straj)
 
+    def add_nonintegrated_running_cost(self, cost_func, vars=None, name="GenericCost"):
+        """Add a  non-integrated running cost to the program"""
+        for n in range(0, self.num_time_samples):
+            new_vars = np.concatenate([var[:,n] for var in vars], axis=0)
+            self.prog.AddCost(cost_func, new_vars, description=name)
+
     def add_running_cost(self, cost_func, vars=None, name="RunningCost"):
         """Add a running cost to the program"""
         integrated_cost = lambda x: x[0] * cost_func(x[1:])
@@ -763,7 +769,6 @@ class ContactImplicitDirectTranscription():
     def numT(self):
         return self._tangent_forces.shape[0]
     
-
 class CentroidalContactTranscription(ContactImplicitDirectTranscription):
     def _add_decision_variables(self):
         """
