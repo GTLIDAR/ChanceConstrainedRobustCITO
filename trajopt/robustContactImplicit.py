@@ -50,24 +50,22 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         #   option 2: uncertainty from normal distance
         #   option 3: unvertainty from friction cone
         #   option 4: uncertainty from both normal distance And friction cone
-        
-        
         if self.erm_option is 1:
             print("Nominal case")
         elif self.erm_option is 2:
             print("Uncertainty from normal distance")
             distanceErmCost = lambda z: self.distanceERMCost(z)
-            self.add_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
+            self.add_nonintegrated_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
         elif self.erm_option is 3:
             print("Uncertainty from fricion cone")
             frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
-            self.add_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
+            self.add_nonintegrated_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
         elif self.erm_option is 4:
             print("Uncertainty from both normal distance and fricion cone")
             distanceErmCost = lambda z: self.distanceERMCost(z)
-            self.add_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
+            self.add_nonintegrated_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
             frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
-            self.add_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
+            self.add_nonintegrated_running_cost(frictionConeErmCost,  [self.x, self.l], name = "FrictionConeERMCost")
         else:
             print("Undefined chance constraint option")
             quit()

@@ -6,19 +6,27 @@ June 18, 2021
 """
 import timeit
 import functools
+<<<<<<< HEAD
 from matplotlib import pyplot as plt
 import utilities as utils
+=======
+>>>>>>> IEEE_Access
 
 def timer(func):
     """Print the runtime of the decorated function. The decorator also records the time in the total_time attribute"""
     @functools.wraps(func)
     def wrapper_timer(*args, **kwargs):
+<<<<<<< HEAD
+=======
+        wrapper_timer.total_time = 0.
+>>>>>>> IEEE_Access
         start = timeit.default_timer()
         value = func(*args, **kwargs)
         stop = timeit.default_timer()
         wrapper_timer.total_time = stop - start
         print(f"Finished {func.__name__!r} in {wrapper_timer.total_time:.4f} seconds")
         return value
+<<<<<<< HEAD
     wrapper_timer.total_time = 0
     return wrapper_timer
 
@@ -79,3 +87,6 @@ if __name__ == '__main__':
     print(f"Wasting time")
     waste_time(100)
     print(f"Wasted {waste_time.total_time}")
+=======
+    return wrapper_timer
+>>>>>>> IEEE_Access

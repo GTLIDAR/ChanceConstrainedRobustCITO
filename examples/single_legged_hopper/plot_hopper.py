@@ -227,7 +227,7 @@ if __name__ == "__main__":
     # plot_CC()
     sigmas =  [0.6, 0.65, 0.8]
     # sigmas =  [0.05, 0.28]
-    # plot_erm(sigmas, 'erm_cc_beta_theta', 6)
+    plot_erm(sigmas, 'erm_cc_beta_theta', 6)
     # plot_beta_theta()
     # Visualization:
     # x = np.loadtxt('data/single_legged_hopper/erm_cc/x_0.4.txt')

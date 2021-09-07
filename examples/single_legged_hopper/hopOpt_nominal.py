@@ -195,7 +195,5 @@ vis = Visualizer(_file)
 body_inds = vis.plant.GetBodyIndices(vis.model_index)
 base_frame = vis.plant.get_body(body_inds[0]).body_frame()
 vis.plant.WeldFrames(vis.plant.world_frame(), base_frame, RigidTransform())
-
 vis.visualize_trajectory(x)
-
 print('Done!')
