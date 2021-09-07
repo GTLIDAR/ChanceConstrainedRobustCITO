@@ -22,7 +22,7 @@ class Hopper(TimeSteppingMultibodyPlant):
         # Initialize
         super(Hopper, self).__init__(file=FindResource(urdf_file), terrain=terrain)
         # Weld base to world frame
-        body_inds = self.multibody.GetBodyIndices(self.model_index[0])
+        body_inds = self.multibody.GetBodyIndices(self.model_index)
         base_frame = self.multibody.get_body(body_inds[0]).body_frame()
         self.multibody.WeldFrames(self.multibody.world_frame(), base_frame, RigidTransform())
 

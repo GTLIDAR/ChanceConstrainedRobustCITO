@@ -7,6 +7,7 @@ Luke Drnach
 October 5, 2020
 """
 import numpy as np 
+import utilities as utils
 from matplotlib import pyplot as plt
 from pydrake.all import MathematicalProgram, PiecewisePolynomial
 from pydrake.autodiffutils import AutoDiffXd
@@ -60,6 +61,7 @@ class ContactImplicitDirectTranscription():
         self.plant_ad = self.plant_f.toAutoDiffXd()       
         self.context_ad = self.plant_ad.multibody.CreateDefaultContext()
         self.options = options
+        self.printer=None
         # Create MultibodyForces
         MBF = MultibodyForces_[float]
         self.mbf_f = MBF(self.plant_f.multibody)
@@ -665,6 +667,9 @@ class ContactImplicitDirectTranscription():
             jl = jl.vector_values(t)
         # if s is not None:
         #     s = s.vector_values(t)
+
+
+
         soln_dict = {"time": t,
                     "state": x.vector_values(t),
                     "control": u.vector_values(t), 
@@ -676,6 +681,13 @@ class ContactImplicitDirectTranscription():
                     "exit_code": soln.get_solver_details().info,
                     "final_cost": soln.get_optimal_cost()
                     }
+        # Get infeasible constraint names
+        if soln.get_solver_id().name() == "SNOPT/fortran":
+            exit_code = soln.get_solver_details().info
+            soln_dict['exit_msg'] = utils.SNOPT_DECODER[exit_code]
+            # Filter out the empty infeasible constraints
+            infeasibles = soln.GetInfeasibleConstraintNames(self.prog)
+            soln_dict['infeasible'] = [name.split("[")[0] for name in infeasibles]
         return soln_dict
 
     def set_slack(self, val):
@@ -732,9 +744,9 @@ class ContactImplicitDirectTranscription():
                      "figure" prints the costs and constraints to a figure window
                      "all"    prints the costs and constraints to the terminal and to a figure window
         """
-        printer = MathProgIterationPrinter(prog=self.prog, display=display)
+        self.printer = MathProgIterationPrinter(prog=self.prog, display=display)
         all_vars = self.prog.decision_variables()
-        self.prog.AddVisualizationCallback(printer, all_vars)
+        self.prog.AddVisualizationCallback(self.printer, all_vars)
 
     def enable_iteration_visualizer(self):
         """
