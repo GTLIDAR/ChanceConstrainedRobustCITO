@@ -126,6 +126,8 @@ def convert_to_pkl():
     with open('data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl', "wb") as output:
         pickle.dump(data, output, pickle.HIGHEST_PROTOCOL)
 
-if __name__ == "__main__":
-    convert_to_pkl()
+def find_cores():
 
+if __name__ == "__main__":
+    # convert_to_pkl()
+    

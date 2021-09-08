@@ -21,8 +21,9 @@ from systems.block.block import Block
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
 from IEEE_figures import plot_control_trajectories
+import concurrent.futures
 
-def run_block_trajopt_ERM(friction_multipler = 1*1e6, scale_option=1):
+def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
     friction_sigmas = np.array([0.1, 0.3, 1])
     # friction_sigmas = np.array([ 0.3])
     friction_bias = 0.01
@@ -40,7 +41,48 @@ def run_block_trajopt_ERM(friction_multipler = 1*1e6, scale_option=1):
                             save_name=name, scale_option=scale_option)
     plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
-def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.6, tight=False,
+def run_opt_erm(sigma):
+    friction_multipler = 5*1e4
+    friction_bias = 0.01
+    distance_variance = 0.1
+    distance_multiplier = 1e6
+    distance_erm_params = np.array([distance_variance, distance_multiplier])
+    friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
+    print(f"Friction Variance is {sigma}")
+    # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
+    name = 'block'
+    sigma_str = "{:.2e}".format(sigma)
+    name = name + '_erm'
+    name=name+'_sigma'+sigma_str
+    cc_params=[0.65, 0.65, sigma]
+    run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
+                        distance_erm_params=distance_erm_params,
+                        uncertainty_option=3, cc_option=1, save_folder="data/IEEE_Access/sliding_block/ERM", 
+                        save_name=name, scale_option=1, tight=True)
+    
+def run_opt_erm_cc(configs):
+    sigma = configs[0]
+    beta = configs[1]
+    theta = configs[2]
+    friction_multipler = 1e4
+    friction_bias = 0.01
+    distance_variance = 0.1
+    distance_multiplier = 1e6
+    distance_erm_params = np.array([distance_variance, distance_multiplier])
+    friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
+    print(f"Friction Variance is {sigma}")
+    # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
+    name = 'block'
+    sigma_str = "{:.2e}".format(sigma)
+    name = name + '_erm'
+    name=name+'_sigma'+sigma_str
+    cc_params=[beta, theta, sigma]
+    run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
+                        distance_erm_params=distance_erm_params,
+                        uncertainty_option=3, cc_option=3, save_folder="data/IEEE_Access/sliding_block/ERM+CC", 
+                        save_name=name, scale_option=1, tight=True)
+
+def run_block_trajopt_ERM_CC(folder=None, scale_option=1, sigma = 0.01, beta = 0.6, theta=0.6, tight=False,
                             ermOption=1, ccOption=1):
     friction_sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
     # friction_sigmas = np.array([ 0.01])
@@ -57,20 +99,21 @@ def run_block_trajopt_ERM_CC(folder = None, scale_option=1, beta = 0.6, theta=0.
         print(f"Friction Variance is {sigma}")
         # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
         name = 'block'
+        sigma_str = "{:.2e}".format(sigma)
         if ermOption is not 1:
             name = name + '_erm'
         if ccOption is not 1:
             name = name + '_cc'
-        sigma_str = "{:.2e}".format(sigma)
-        beta_str = "{:.2e}".format(beta)
-        theta_str = "{:.2e}".format(theta)
-        name = name+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str
+            beta_str = "{:.2e}".format(beta)
+            theta_str = "{:.2e}".format(theta)
+            name = name+'_beta'+beta_str+'_theta'+theta_str
+        name=name+'_sigma'+sigma_str
         cc_params=[beta, theta, sigma]
         run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                             distance_erm_params=distance_erm_params,
                             uncertainty_option=ermOption, cc_option=ccOption, save_folder=folder, 
                             save_name=name, scale_option=scale_option, tight=tight)
-    # plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
+    plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
 def run_block_trajopt(cc_params = [0.5,0.5,0],
                         distance_erm_params = [0.1, 1],
@@ -120,7 +163,6 @@ def run_block_trajopt(cc_params = [0.5,0.5,0],
     # Save
     save_block_trajectories(soln, folder=save_folder, name=save_name)
 
-    
 def create_block_plant():
     """ Create block plant"""
     plant = Block()
@@ -198,7 +240,7 @@ def add_final_cost(trajopt):
 
 def set_default_snopt_options(trajopt, scale_option = 2):
     """ Set SNOPT solver options """
-    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e5)
+    trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Iterations Limit", 1e6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Feasibility Tolerance", 1e-6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Major Optimality Tolerance", 1e-6)
     trajopt.prog.SetSolverOption(SnoptSolver().solver_id(), "Scale Option", scale_option)
@@ -257,9 +299,33 @@ def beta_theta():
             run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/beta_theta", 
                 beta=beta, theta=theta, tight=False, scale_option=2, ermOption=3, ccOption=3)
 
+def generate_config():
+    sigmas = [0.01, 0.05, 0.1, 0.3, 1]
+    betas = [0.51, 0.60, 0.7, 0.8, 0.9]
+    thetas = [0.51, 0.60, 0.7, 0.8, 0.9]
+    configs = []
+    for sigma in sigmas:
+        for beta in betas:
+            for theta in thetas:
+                config = [sigma, beta, theta]
+                configs.append(config)
+    print(len(configs))
+    return configs
+
+def run_erm_parallel():
+    sigmas = [0.01, 0.05, 0.1, 0.3, 1]
+    with concurrent.futures.ProcessPoolExecutor(4) as executor:
+        successes = executor.map(run_opt_erm, sigmas)
+
+def run_erm_cc_parallel():
+    configs = generate_config()
+    with concurrent.futures.ProcessPoolExecutor(4) as executor:
+        successes = executor.map(run_opt_erm_cc, configs)
+
 if __name__ == "__main__":
     # ERM_CC_comparison()
     # beta_theta_solvetimes()
-    # run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM_v_ERMCC",
+    # run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM",
     #     beta=0.65, theta=0.65, scale_option=1, tight=False, ermOption=3, ccOption=1)
-    beta_theta()
+    # beta_theta()
+    run_erm_parallel()
