@@ -6,25 +6,21 @@ import systems.block.block as block
 from pydrake.all import RigidTransform, PiecewisePolynomial
 import concurrent.futures
 
-def plot_control_trajectories(folder = None, name = None, sigmas = None):
-    fig1, axs1 = plt.subplots(5,1)
+def plot_multi_trajectories(folder = None, name = None, configs = None, ERM=False, CC=False):
+    fig1, axs1 = plt.subplots(3,1)
     ref_soln = load('data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl')
     t = ref_soln['time'].reshape(101,1)
     ref_u = ref_soln['control'].reshape(101,1)
     axs1[0].plot(t, ref_u, label='Reference', linewidth=2.5)
     axs1[0].legend()
-    for sigma in sigmas:
-        # filename = f"{folder}/{name}_{sigma}"
-        sigma_str = "{:.2e}".format(sigma)
-        name = 'block' + '_erm' + '_sigma'+sigma_str+'.pkl'
-        # name = f'block_cc_sigma{sigma}_beta0.65_theta0.65'
+    for config in configs:
+        name = generate_filename(name="block", ERM=ERM, CC=CC, config=config)
         filename=folder+'/'+name
         soln = load(filename)
         u = soln['control'].reshape(101,1)
         f = soln['force']
-        axs1[1].plot(t[:], u[:], label=f'$\sigma$ ={sigma}', linewidth=2.5)
-        axs1[2].plot(t[:], f[1,:]-f[3,:], label=f'$\sigma$ ={sigma}', linewidth=2.5)
-        
+        axs1[1].plot(t[:], u[:], label=f'$\sigma$ ={config[0]}', linewidth=2.5)
+        axs1[2].plot(t[:], f[1,:]-f[3,:], label=f'$\sigma$ ={config[0]}', linewidth=2.5)
     axs1[1].legend()
     axs1[1].spines["top"].set_visible(False)
     axs1[1].spines["right"].set_visible(False)
@@ -51,14 +47,19 @@ def plot_traj(folder=None, config = None, ERM=False, CC=False):
 def plot_ERMCC_traj(config=None):
     plot_traj(folder="data/IEEE_Access/sliding_block/ERM+CC", config=config, ERM=True, CC=True)
 
-def run_plot():
-    configs = generate_config()
+def plot_ERM_traj(config=None):
+    plot_traj(folder="data/IEEE_Access/sliding_block/ERM", config=config, ERM=True, CC=False)
+
+def run_plot(configs=None, ERM=False, CC=False):
+    # for config in configs:
+    #     print(f"sigma is{config[0]}; beta is {config[1]}; theta is {config}")
+    #     plot_ERMCC_traj(config=config)
     for config in configs:
-        print(f"sigma is{config[0]}; beta is {config[1]}; theta is {config[2]}")
-        plot_ERMCC_traj(config=config)
+        print(f"sigma is {config[0]}")
+        plot_ERM_traj(config=config)
     # with concurrent.futures.ProcessPoolExecutor() as executor:
     #     successes = executor.map(run_plot, configs)
-        
+
 def compare_traj():
     x_old= np.loadtxt('data/slidingblock/warm_start/x.txt')
     u_old = np.loadtxt('data/slidingblock/warm_start/u.txt')
@@ -80,5 +81,7 @@ def compare_traj():
     plt.show()
 
 if __name__ == "__main__":
-    run_plot()
-    pass
+    configs = generate_config(sigmas=[0.3], betas=[0.6], thetas=[0.6])
+    plot_multi_trajectories(folder="data/IEEE_Access/sliding_block/ERM+CC",
+                    ERM=True, CC=True, configs=configs)
+    # run_plot(configs=configs, ERM=True, CC=False)

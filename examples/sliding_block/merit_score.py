@@ -3,7 +3,7 @@ from numpy.lib import utils
 from trajopt.contactimplicit import ContactConstraintViewer as CCV
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from systems.block.block import Block
-from blockOpt_access import setup_nominal_block_trajopt
+from blockOpt_access import *
 import utilities as utils
 import matplotlib.pyplot as plt
 from systems.terrain import FlatTerrain
@@ -15,11 +15,10 @@ TRAJOPT = setup_nominal_block_trajopt()
 markersize = 10
 linewidth = 3
 sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1.0])
-ERM_folder = "data/IEEE_Access/sliding_block/ERM_tight"
-ERM_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM"
-# ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM_CC"
-# ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM+CC_scaleOption2"
-ERM_CC_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM+CC"
+ERM_folder = "data/IEEE_Access/sliding_block/ERM"
+ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM+CC"
+# ERM_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM"
+# ERM_CC_folder = "data/IEEE_Access/sliding_block/PaperResults/ERM+CC"
 reference = 'data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl'
 betas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
 thetas = np.array([0.51, 0.60, 0.7, 0.8, 0.9])
@@ -39,16 +38,16 @@ def calculate_merit_score(cstr=None, key=None):
     merit_score = 0
     if key == 'dynamics' or key == 'TimestepConstraint':
         for i in range(cstr.shape[0]):
-            merit_score = merit_score + np.sum(np.square(cstr[i,:-1]))
+            merit_score = merit_score + np.sum(np.square(cstr[i,:]))
     elif key == 'normal_distance' or key == 'sliding_velocity' or key == 'friction_cone':
         row, col = cstr.shape
         for i in range(row):
             # inequality constraint
             if i < row*2/3:
-                merit_score = merit_score + np.sum(np.square(np.minimum(0, cstr[i,:-1])))
+                merit_score = merit_score + np.sum(np.square(np.minimum(0, cstr[i,:])))
             # equality constraint
             else:
-                merit_score = merit_score + np.sum(np.square(cstr[i,:-1]))
+                merit_score = merit_score + np.sum(np.square(cstr[i,:]))
     else:
         print('INVALID KEY')
         print(key)
@@ -99,7 +98,7 @@ def robustness_comparision():
             for theta in thetas:
                 beta_str = "{:.2e}".format(beta)
                 theta_str = "{:.2e}".format(theta)
-                erm_cc_filename = ERM_CC_folder+'/'+'block_erm_cc'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
+                erm_cc_filename = ERM_CC_folder+'/'+'block_erm'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
                 erm_cc_cstr = get_constraints(filename=erm_cc_filename)
                 erm_cc_robustness[f'beta{beta}theta{theta}'][i] = calculate_robustness(filename=erm_cc_filename)
         i=i+1
@@ -188,7 +187,7 @@ def merit_score_comparison():
                 beta_str = "{:.2e}".format(beta)
                 theta_str = "{:.2e}".format(theta)
                 # erm_cc_scores['']
-                erm_cc_filename = ERM_CC_folder+'/'+'block_erm_cc'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
+                erm_cc_filename = ERM_CC_folder+'/'+'block_erm'+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str+'.pkl'
                 erm_cc_cstr = get_constraints(filename=erm_cc_filename)
                 erm_cc_scores[f'beta{beta}theta{theta}'][i] = calculate_merit_score(erm_cc_cstr['friction_cone'], key='friction_cone')
         i=i+1
@@ -217,4 +216,4 @@ if __name__ == "__main__":
     # main()
     # log_bar_graph_block_total()
     merit_score_comparison()
-    # robustness_comparision()
+    robustness_comparision()

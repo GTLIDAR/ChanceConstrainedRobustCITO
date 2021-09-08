@@ -20,7 +20,7 @@ from trajopt.constraints import NCCImplementation, NCCSlackType
 from systems.block.block import Block
 from pydrake.solvers.snopt import SnoptSolver
 import utilities as utils
-from IEEE_figures import plot_control_trajectories
+from IEEE_figures import plot_multi_trajectories
 import concurrent.futures
 
 def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
@@ -39,7 +39,7 @@ def run_block_trajopt_ERM(friction_multipler = 1e6, scale_option=1):
                             distance_erm_params=distance_erm_params,
                             uncertainty_option=3, cc_option=1, save_folder=folder, 
                             save_name=name, scale_option=scale_option)
-    plot_control_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
+    plot_multi_trajectories(folder=folder, name='block_erm', sigmas=friction_sigmas)
 
 def run_opt_erm(sigma):
     friction_multipler = 5*1e4

@@ -388,27 +388,38 @@ def generate_filename(name=None, ERM=False, CC=False, config=None):
     Config is a list [sigma, beta, theta]
     """
     # TODO: re-run erm+cc opts with the new name generating method
-    if ERM is True:
+    if CC is True and ERM is True:
         name = name+'_erm'
+        # name = name+'_cc'
         sigma = config[0]
         sigma_str = "{:.2e}".format(sigma)
-    if CC is True:
-        # name = name+'_cc'
         beta = config[1]
         theta = config[2]
         beta_str = "{:.2e}".format(beta)
         theta_str = "{:.2e}".format(theta)
-    if ERM is True:
         name=name+'_sigma'+sigma_str
-    if CC is True:
+        name=name+'_beta'+beta_str+'_theta'+theta_str
+    elif ERM is True:
+        name = name+'_erm'
+        sigma = config[0]
+        sigma_str = "{:.2e}".format(sigma)
+        name=name+'_sigma'+sigma_str
+    elif CC is True:
+        name = name +'_cc'
+        sigma = config[0]
+        sigma_str = "{:.2e}".format(sigma)
+        beta = config[1]
+        theta = config[2]
+        beta_str = "{:.2e}".format(beta)
+        theta_str = "{:.2e}".format(theta)
+        name=name+'_sigma'+sigma_str
         name=name+'_beta'+beta_str+'_theta'+theta_str
     name = name+'.pkl'
     return name
 
-def generate_config():
-    sigmas = [0.01, 0.05, 0.1, 0.3, 1]
-    betas = [0.51, 0.60, 0.7, 0.8, 0.9]
-    thetas = [0.51, 0.60, 0.7, 0.8, 0.9]
+def generate_config(sigmas=[0.01, 0.05, 0.1, 0.3, 1],
+                     betas=[0.51, 0.60, 0.7, 0.8, 0.9],
+                     thetas=[0.51, 0.60, 0.7, 0.8, 0.9]):
     configs = []
     for sigma in sigmas:
         for beta in betas:

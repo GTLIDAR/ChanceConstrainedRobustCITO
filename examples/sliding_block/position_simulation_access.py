@@ -1,12 +1,12 @@
 """
 This script is used to generate position forward simulation for IEEE Access
 """
+
 from systems.terrain import FlatTerrain
 from os import stat_result
 from systems.block.block import Block
 import numpy as np
 import matplotlib.pyplot as plt
-
 import utilities as utils
 
 # global parameters
@@ -18,35 +18,42 @@ frictions = np.array([ 0.3, 0.43, 0.57, 0.7])
 target = 5
 x0 = np.array([0, 0.5, 0, 0])
 
-def run_simulation(ERM_dir=None, ERM_CC_dir=None):
+def run_simulation(config=None):
     '''beta theta is fixed in this simulation'''
-    reference_control = np.loadtxt('data/slidingblock/warm_start/u.txt')
+    reference_control = load_ref_control()
     fig, axs = plt.subplots(3,1)
-    sigma = 0.3
+    erm_control = load_ERM_control(config=config)
+    erm_cc_control = load_ERM_CC_control(config=config)
+    # make dict to store simulated state traj
+    ref_results = {}
+    erm_results = {}
+    erm_cc_results = {}
     for fric in frictions:
-        # reference control
         plant = Block(terrain=FlatTerrain(friction=fric))
         plant.Finalize()
+        # reference control
         t, x, f = plant.simulate(h, x0, u = reference_control.reshape(1,101), N = 101)
+        ref_results[f'fric={fric}'] = x
         y_bar = np.zeros(t.shape) + 5
         axs[0].plot(t, y_bar, 'k', linewidth =1)
         axs[0].plot(t, x[0, :], linewidth =3, label = f'$\mu$ = {fric}')
         # ERM control
-        filename = f"{ERM_dir}/block_erm_{sigma}"
-        soln = utils.load(filename)
-        erm_control = soln['control'].reshape(101,1)
         t, x, f = plant.simulate(h, x0, u = erm_control.reshape(1,101), N = 101)
+        erm_results[f'fric={fric}'] = x
         axs[1].plot(t, y_bar, 'k', linewidth =1)
         axs[1].plot(t, x[0, :], linewidth =3, label = f'$\mu$ = {fric}')
         # ERM + CC control
-        filename = f"{ERM_CC_dir}/block_erm_{sigma}"
-        soln = utils.load(filename)
-        erm_cc_control = soln['control'].reshape(101,1)
         t, x, f = plant.simulate(h, x0, u = erm_cc_control.reshape(1,101), N = 101)
-        soln['control'].reshape(101,1)
+        erm_cc_results[f'fric={fric}'] = x
         axs[2].plot(t, y_bar, 'k', linewidth =1)
         axs[2].plot(t, x[0, :], linewidth =3, label = f'$\mu$ = {fric}')
-
+    folder = f"data/IEEE_Access/sliding_block/PaperResults/simulationResults/"
+    ref_name = folder + "referenceSimulatedResults.pkl"
+    erm_name = folder + f"ERMSimulatedResultsSigma={config[0]}.pkl"
+    erm_cc_name = folder + f"ERM+CCSimulatedResultsSimga={config[0]}Beta={config[1]}Theta={config[2]}.pkl"
+    utils.save(ref_name, ref_results)
+    utils.save(erm_name, erm_results)
+    utils.save(erm_cc_name, erm_cc_results)
     for i in range(axs.shape[0]):
         axs[i].set_yticks([0, 2, 4, 6])
         axs[i].set_ylim([0,6.1])
@@ -57,8 +64,9 @@ def run_simulation(ERM_dir=None, ERM_CC_dir=None):
         axs[i].yaxis.set_ticks_position('left')
     plt.show()
 
-def run_simulation_fixed_CC(ERM_dir= None, ERM_CC_dir=None):
+def generate_errorbar_fixed_CC():
     '''comparison between ERM and ERM+CC where beta theta parameters are fixed'''
+    configs = utils.generate_config(betas=[0.7], thetas=[0.7])
     sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1.0])
     # reference control
     reference_control = np.loadtxt('data/slidingblock/warm_start/u.txt')
@@ -71,16 +79,16 @@ def run_simulation_fixed_CC(ERM_dir= None, ERM_CC_dir=None):
     axs.errorbar(x, mean_position, yerr=yerr, fmt='o', capsize=capsize,label='Reference',
                     elinewidth=linewidth, capthick=capthick)
     x=x+2
-    for sigma in sigmas:
+    for config in configs:
         # ERM control
-        erm_control = load_ERM_control(sigma=sigma)
+        erm_control = load_ERM_control(config=config)
         final_positions = simulate_block_with_perturbed_frictions(frictions=frictions, control=erm_control)
         mean_position, yerr = calculate_errors(final_positions=final_positions, target=target)
         axs.errorbar(x, mean_position, yerr=yerr, fmt='o', capsize=capsize,label='ERM',
                         elinewidth=linewidth, capthick=capthick, color='darkblue')
         x = x+1
         # ERM + CC control
-        erm_cc_control = load_ERM_CC_control(sigma=sigma)
+        erm_cc_control = load_ERM_CC_control(config=config)
         final_positions = simulate_block_with_perturbed_frictions(frictions=frictions, control=erm_cc_control)
         mean_position, yerr = calculate_errors(final_positions=final_positions, target=target)
         axs.errorbar(x, mean_position, yerr=yerr, fmt='o', capsize=capsize,label='ERM+CC',
@@ -92,9 +100,10 @@ def run_simulation_fixed_CC(ERM_dir= None, ERM_CC_dir=None):
     axs.spines["right"].set_visible(False)
     plt.show()
 
-def run_simulation_beta_theta(folder=None):
+def generate_errorbar_beta_theta():
     '''beta theta varies in this simulation'''
     fig, axs = plt.subplots(1,1)
+    configs = utils.generate_config(sigmas=[0.3], betas=[0.51, 0.7, 0.9], thetas=[0.51, 0.7, 0.9])
     betas = np.array([0.51, 0.6, 0.9])
     thetas = np.array([0.51, 0.6, 0.9])
     sigma=0.3
@@ -102,7 +111,7 @@ def run_simulation_beta_theta(folder=None):
     # ERM control
     final_positions= np.zeros([4,1])
     i = 0
-    erm_control = load_ERM_control(sigma=sigma)
+    erm_control = load_ERM_control(config=[0.3, 0.6, 0.6])
     final_positions = simulate_block_with_perturbed_frictions(frictions=frictions, control=erm_control)
     mean_position, yerr = calculate_errors(final_positions=final_positions, target=target)
     axs.errorbar(x, mean_position, yerr=yerr, fmt='o', capsize=capsize,label='ERM',
@@ -110,32 +119,18 @@ def run_simulation_beta_theta(folder=None):
     x = x+2
     colors = ['green', 'purple', 'grey']
     # ERM + CC control
-    for theta in thetas:
-        j = 0
-        for beta in betas:
-            name =f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
-            filename = folder+'/'+ name
-            soln = utils.load(filename=filename)
-            control = soln['control'].reshape(101,1)
-            final_positions= np.zeros([4,1])
-            i=0
-            for fric in frictions:
-                plant = Block(terrain=FlatTerrain(friction=fric))
-                plant.Finalize()
-                t, state, f = plant.simulate(h, x0, u = control.reshape(1,101), N = 101)
-                final_positions[i] = state[0,100]
-                i = i+1
-            position_errors = final_positions - 5
-            mean_position = np.mean(position_errors)
-            legend = f'$\ beta$={beta}, $\ theta$={theta}'
-            yerr = np.zeros([2,1])
-            yerr[0] = np.abs(position_errors.min()-mean_position)
-            yerr[1] = np.abs(position_errors.max()-mean_position)
-            axs.errorbar(x, mean_position, yerr=yerr, color = colors[j],
-                             fmt='o', capsize=4,label=legend, elinewidth=linewidth, capthick=capthick)
-            j=j+1
-            x=x+1
-        x=x+1
+    for config in configs:
+        erm_cc_control = load_ERM_CC_control(config=config)
+        final_positions = simulate_block_with_perturbed_frictions(frictions=frictions, control=erm_cc_control)
+        position_errors = final_positions - target
+        mean_position = np.mean(position_errors)
+        legend = f'$\ beta$={config[1]}, $\ theta$={config[2]}'
+        yerr = np.zeros([2,1])
+        yerr[0] = np.abs(position_errors.min()-mean_position)
+        yerr[1] = np.abs(position_errors.max()-mean_position)
+        axs.errorbar(x, mean_position, yerr=yerr,
+                            fmt='o', capsize=4,label=legend, elinewidth=linewidth, capthick=capthick)
+        x=x+2
     axs.set_xticks([])
     axs.spines["top"].set_visible(False)
     axs.spines["right"].set_visible(False)
@@ -154,17 +149,25 @@ def simulate_block_with_perturbed_frictions(frictions=0.5, control=None):
         i = i+1
     return final_positions
 
-def load_ERM_control(sigma=None):
+def load_ERM_control(config=None):
     ERM_dir = "data/IEEE_Access/sliding_block/ERM"
-    filename = f"{ERM_dir}/block_erm_{sigma}"
+    name = utils.generate_filename(name="block", ERM=True, CC=False, config=config)
+    filename = ERM_dir+'/'+name
     soln = utils.load(filename)
     control = soln['control'].reshape(101,1)
     return control
 
-def load_ERM_CC_control(sigma=None):
-    ERM_CC_dir = "data/IEEE_Access/sliding_block/ERM_CC"
-    filename = f"{ERM_CC_dir}/block_erm_{sigma}"
+def load_ERM_CC_control(config=None):
+    ERM_CC_dir = "data/IEEE_Access/sliding_block/ERM+CC" 
+    name = utils.generate_filename(name="block", ERM=True, CC=True, config=config)
+    filename = ERM_CC_dir+'/'+name
     soln = utils.load(filename)
+    control = soln['control'].reshape(101,1)
+    return control
+
+def load_ref_control():
+    ref_dir = "data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl"
+    soln = utils.load(ref_dir)
     control = soln['control'].reshape(101,1)
     return control
 
@@ -182,8 +185,6 @@ def plot_target_line(axs=None):
     axs.plot(target_line, y, 'k--')
 
 if __name__ == "__main__":
-    ERM_folder = "data/IEEE_Access/sliding_block/ERM"
-    ERM_CC_folder = "data/IEEE_Access/sliding_block/ERM_CC"
-    # run_simulation(ERM_dir=ERM_folder, ERM_CC_dir=ERM_CC_folder)
-    run_simulation_beta_theta(folder="data/IEEE_Access/sliding_block/ERM_CC_Beta_theta_scaleOption2_tight")
-    # run_simulation_fixed_CC()
+    # run_simulation(config=[1,0.7,0.7])
+    # generate_errorbar_fixed_CC()
+    generate_errorbar_beta_theta()
