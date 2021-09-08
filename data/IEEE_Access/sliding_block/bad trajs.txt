@@ -1,0 +1,1 @@
+sigma is0.05; beta is 0.51; theta is 0.6

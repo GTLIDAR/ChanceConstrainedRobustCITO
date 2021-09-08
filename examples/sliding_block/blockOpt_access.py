@@ -48,6 +48,7 @@ def run_opt_erm(sigma):
     distance_multiplier = 1e6
     distance_erm_params = np.array([distance_variance, distance_multiplier])
     friction_erm_params = np.array([sigma, friction_bias, friction_multipler])
+    print(type(sigma))
     print(f"Friction Variance is {sigma}")
     # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
     name = 'block'
@@ -311,7 +312,6 @@ def generate_config():
             for theta in thetas:
                 config = [sigma, beta, theta]
                 configs.append(config)
-    print(len(configs))
     return configs
 
 def run_erm_parallel():
@@ -330,5 +330,5 @@ if __name__ == "__main__":
     # run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM",
     #     beta=0.65, theta=0.65, scale_option=1, tight=False, ermOption=3, ccOption=1)
     # beta_theta()
-    # run_erm_parallel()
-    run_erm_cc_parallel()
+    run_erm_parallel()
+    # run_erm_cc_parallel()

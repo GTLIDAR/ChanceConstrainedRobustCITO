@@ -1,9 +1,11 @@
 """This is used for generateting visualization for the IEEE Access paper"""
 import numpy as np
 import matplotlib.pyplot as plt
-from utilities import FindResource, GetKnotsFromTrajectory, load
+from utilities import FindResource, GetKnotsFromTrajectory, load, generate_filename, generate_config
 import systems.block.block as block
 from pydrake.all import RigidTransform, PiecewisePolynomial
+import concurrent.futures
+
 def plot_control_trajectories(folder = None, name = None, sigmas = None):
     fig1, axs1 = plt.subplots(5,1)
     ref_soln = load('data/IEEE_Access/sliding_block/PaperResults/warm_start/warm_start.pkl')
@@ -31,22 +33,32 @@ def plot_control_trajectories(folder = None, name = None, sigmas = None):
     # axs1[2].set_yticks([0,-2,-4,-6])
     plt.show()
 
-def plot_traj(folder=None, sigmas = None):
-    for sigma in sigmas:
-        sigma_str = "{:.2e}".format(sigma)
-        name = 'block' + '_erm' + '_sigma'+sigma_str+'.pkl'
-        filename=folder+'/'+name
-        soln = load(filename=filename)
-        u = soln['control']
-        f = soln['force']
-        x = soln['state']
-        t = np.linspace(start=0, stop=1, num=101)
-        utraj = PiecewisePolynomial.FirstOrderHold(t, u)
-        xtraj = PiecewisePolynomial.FirstOrderHold(t, x)
-        ftraj = PiecewisePolynomial.FirstOrderHold(t, f)
-        plant = block.Block()
-        plant.plot_trajectories(xtraj=xtraj, utraj=utraj, ftraj=ftraj)
+def plot_traj(folder=None, config = None, ERM=False, CC=False):
+    """config = [sigma, beth, theta]"""
+    name = generate_filename(name="block", ERM=ERM, CC=CC, config=config)
+    filename=folder+'/'+name
+    soln = load(filename=filename)
+    u = soln['control']
+    f = soln['force']
+    x = soln['state']
+    t = np.linspace(start=0, stop=1, num=101)
+    utraj = PiecewisePolynomial.FirstOrderHold(t, u)
+    xtraj = PiecewisePolynomial.FirstOrderHold(t, x)
+    ftraj = PiecewisePolynomial.FirstOrderHold(t, f)
+    plant = block.Block()
+    plant.plot_trajectories(xtraj=xtraj, utraj=utraj, ftraj=ftraj)
 
+def plot_ERMCC_traj(config=None):
+    plot_traj(folder="data/IEEE_Access/sliding_block/ERM+CC", config=config, ERM=True, CC=True)
+
+def run_plot():
+    configs = generate_config()
+    for config in configs:
+        print(f"sigma is{config[0]}; beta is {config[1]}; theta is {config[2]}")
+        plot_ERMCC_traj(config=config)
+    # with concurrent.futures.ProcessPoolExecutor() as executor:
+    #     successes = executor.map(run_plot, configs)
+        
 def compare_traj():
     x_old= np.loadtxt('data/slidingblock/warm_start/x.txt')
     u_old = np.loadtxt('data/slidingblock/warm_start/u.txt')
@@ -68,12 +80,5 @@ def compare_traj():
     plt.show()
 
 if __name__ == "__main__":
-    # dir = "data/IEEE_Access/sliding_block/ERM_CC_1000000.0_scaleOption_1"
-    # dir = "data/IEEE_Access/sliding_block/ERM_CC"
-    dir = "data/IEEE_Access/sliding_block/ERM"
-    sigmas = np.array([0.01, 0.05, 0.1, 0.3, 1])
-    plot_control_trajectories(folder=dir,
-                    sigmas=sigmas)
-    # plot_traj(folder=dir, sigmas=sigmas)
-    # compare_traj()
+    run_plot()
     pass
