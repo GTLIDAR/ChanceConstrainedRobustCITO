@@ -1,0 +1,6 @@
+Optimization successful? False
+Optimal cost = 90303.04515314072
+Solved with SNOPT/fortran
+Elapsed time: 62.65561650000018
+SNOPT Exit Status 41: current point cannot be improved
+Infeasible constraints: set()

@@ -64,7 +64,7 @@ def run_opt_erm_cc(configs):
     sigma = configs[0]
     beta = configs[1]
     theta = configs[2]
-    friction_multipler = 1e4
+    friction_multipler = 5*1e4
     friction_bias = 0.01
     distance_variance = 0.1
     distance_multiplier = 1e6
@@ -74,8 +74,10 @@ def run_opt_erm_cc(configs):
     # name = f"block_erm_cc_sigma{sigma}_beta{beta}_theta{theta}"
     name = 'block'
     sigma_str = "{:.2e}".format(sigma)
+    beta_str = "{:.2e}".format(beta)
+    theta_str = "{:.2e}".format(theta)
     name = name + '_erm'
-    name=name+'_sigma'+sigma_str
+    name=name+'_sigma'+sigma_str+'_beta'+beta_str+'_theta'+theta_str
     cc_params=[beta, theta, sigma]
     run_block_trajopt(friction_erm_params=friction_erm_params, cc_params=cc_params,
                         distance_erm_params=distance_erm_params,
@@ -328,4 +330,5 @@ if __name__ == "__main__":
     # run_block_trajopt_ERM_CC(folder=f"data/IEEE_Access/sliding_block/ERM",
     #     beta=0.65, theta=0.65, scale_option=1, tight=False, ermOption=3, ccOption=1)
     # beta_theta()
-    run_erm_parallel()
+    # run_erm_parallel()
+    run_erm_cc_parallel()

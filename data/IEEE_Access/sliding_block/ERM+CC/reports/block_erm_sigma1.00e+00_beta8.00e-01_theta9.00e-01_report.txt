@@ -1,0 +1,6 @@
+Optimization successful? True
+Optimal cost = 224838866.25073674
+Solved with SNOPT/fortran
+Elapsed time: 19.335617800003092
+SNOPT Exit Status 1: optimality conditions satisfied
+Infeasible constraints: set()

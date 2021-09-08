@@ -1,0 +1,6 @@
+Optimization successful? False
+Optimal cost = 90310.5703496474
+Solved with SNOPT/fortran
+Elapsed time: 6539.248236600004
+SNOPT Exit Status 32: major iteration limit reached
+Infeasible constraints: set()
