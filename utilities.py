@@ -44,7 +44,7 @@ SNOPT_DECODER = {
 }
 #TODO: Add "save_and_close" to MathProgIterationPrinter for saving cost figure
 class MathProgIterationPrinter():
-    def __init__(self, prog = None, display='terminal'):
+    def __init__(self, prog = None, display='terminal', title=None):
         """
             display options:
                 "terminal" prints costs and constraints into the terminal
@@ -57,6 +57,8 @@ class MathProgIterationPrinter():
         self.fig = None
         self.display_func = self._get_display_func(display)
         self.title_iter = 50 #Print titles to terminal every title_iter iterations
+        if self.fig is not None and title is not None:
+            self.fig.suptitle(title)
         
     def __call__(self, x):
         costs = self.calc_costs(x)
@@ -168,20 +170,12 @@ class MathProgIterationPrinter():
 
     def print_to_figure(self, costs, cstrs):
         """ Print costs and constraints to a figure window"""
-<<<<<<< HEAD
         # kEps = np.finfo(float).eps
         # kExp = int(np.log10(kEps)) + 2  # Set the floor to 100 times machine precision
         # Note: Initialize the lines
         if self.iteration == 1:
             for name, value in costs.items():
                 self.cost_lines[name] = self.axs[0].plot([self.iteration], [value], linewidth=1.5, label=name)[0]
-=======
-
-        # Note: Initialize the lines
-        if self.iteration == 1:
-            for name, value in costs.items():
-                self.cost_lines[name] = self.axs[0].semilogy([self.iteration], [value], linewidth=1.5, label=name)[0]
->>>>>>> IEEE_Access
             for name, value in cstrs.items():
                 self.cstr_lines[name] = self.axs[1].plot([self.iteration], [value], linewidth=1.5, label=name)[0]
             self.axs[0].legend()
@@ -340,22 +334,12 @@ def GetKnotsFromTrajectory(trajectory):
     values = trajectory.vector_values(breaks)
     return (breaks, values)
 
-<<<<<<< HEAD
 def printProgramReport(result, prog=None, terminal=True, filename=None, verbose=False):
-=======
-def printProgramReport(result, prog=None, solveTime=None, filename=None):
->>>>>>> IEEE_Access
     """print out information about the result of the mathematical program """
     # Print out general information
     report = f"Solved with {result.get_solver_id().name()}\n"
     report += f"Optimization successful? {result.is_success()}\n"
     report += f"Optimal cost = {result.get_optimal_cost()}\n"
-<<<<<<< HEAD
-=======
-    report += f"Solved with {result.get_solver_id().name()}\n"
-    if solveTime is not None:
-        report += f"Elapsed time: {solveTime}\n"
->>>>>>> IEEE_Access
     # Print out SNOPT specific information
     if result.get_solver_id().name() == "SNOPT/fortran":
         exit_code = result.get_solver_details().info
@@ -365,7 +349,6 @@ def printProgramReport(result, prog=None, solveTime=None, filename=None):
             infeasibles = result.GetInfeasibleConstraintNames(prog)
             infeas = [name.split("[")[0] for name in infeasibles]
             report += f"Infeasible constraints: {set(infeas)}\n"
-<<<<<<< HEAD
     # Print out verbose cost and constraint information
     if verbose:
         printer = MathProgIterationPrinter(prog)
@@ -380,9 +363,6 @@ def printProgramReport(result, prog=None, solveTime=None, filename=None):
             report += f"{key}: \t {cstrs[key]:.4E}\n"
     # Print the report to terminal
     if terminal:
-=======
-    if filename is None:
->>>>>>> IEEE_Access
         print(report)
     #Save to file 
     if filename is not None:
@@ -468,7 +448,6 @@ def getDualSolutionDict(prog, result):
     # Stack all repeating duals along the rows
     for name in duals.keys():
         duals[name] = np.row_stack(duals[name])
-<<<<<<< HEAD
     return duals
 
 def alphanumeric_sort(text_list):
@@ -481,6 +460,3 @@ def find_filepath_recursive(directory, target_file):
         for file in files:
             if file == "trajoptresults.pkl":
                 yield path
-=======
-    return duals
->>>>>>> IEEE_Access

@@ -741,7 +741,7 @@ class ContactImplicitDirectTranscription():
         else:
             raise NotImplementedError("Setting cost penalty is only implemented for option NCCImplementation.COST")
 
-    def enable_cost_display(self, display='terminal'):
+    def enable_cost_display(self, display='terminal', title=None):
         """
         Add a visualization callback to print/show the cost values and constraint violations at each iteration
 
@@ -750,7 +750,7 @@ class ContactImplicitDirectTranscription():
                      "figure" prints the costs and constraints to a figure window
                      "all"    prints the costs and constraints to the terminal and to a figure window
         """
-        self.printer = MathProgIterationPrinter(prog=self.prog, display=display)
+        self.printer = MathProgIterationPrinter(prog=self.prog, display=display, title=title)
         all_vars = self.prog.decision_variables()
         self.prog.AddVisualizationCallback(self.printer, all_vars)
 

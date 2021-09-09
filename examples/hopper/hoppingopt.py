@@ -27,17 +27,15 @@ def boundary_conditions(hopper):
     x_f[:2] = base_f[:]
     return x_0, x_f
 
-def create_hopper_optimization_contact_cost(hopper, x_0, x_f, N=101):
+def create_hopper_optimization(hopper, x0, xf, N=101, options=ci.OptimizationOptions()):
     context = hopper.multibody.CreateDefaultContext()
-    options = ci.OptimizationOptions()
-    options.useNonlinearComplementarityWithCost()
     # Create the optimization
     max_time = 3
     min_time = 3
     trajopt = ci.ContactImplicitDirectTranscription(hopper, context, num_time_samples=N, minimum_timestep=min_time/(N-1), maximum_timestep=max_time/(N-1), options=options)
     # Add boundary constraints
-    trajopt.add_state_constraint(knotpoint=0, value=x_0)
-    trajopt.add_state_constraint(knotpoint=trajopt.num_time_samples-1, value=x_f)
+    trajopt.add_state_constraint(knotpoint=0, value=x0)
+    trajopt.add_state_constraint(knotpoint=trajopt.num_time_samples-1, value=xf)
 
     trajopt.setSolverOptions({'Iterations limit': 100000,
                             'Major iterations limit': 5000,
@@ -55,10 +53,24 @@ def create_hopper_optimization_contact_cost(hopper, x_0, x_f, N=101):
     Q = np.diag([1, 10, 10, 100, 100, 1, 1, 1, 1, 1])
     R = R/2
     Q = Q/2
-
     trajopt.add_quadratic_running_cost(R, np.zeros((3,)), vars=[trajopt.u], name='ControlCost')
-    trajopt.add_quadratic_running_cost(Q, x_f, vars=[trajopt.x], name='StateCost')
+    trajopt.add_quadratic_running_cost(Q, xf, vars=[trajopt.x], name='StateCost')
+
     return trajopt
+
+
+def create_hopper_optimization_contact_cost(hopper, x_0, x_f, N=101):
+    """ Hopper optimization with contact enforced as penalty cost """
+    options = ci.OptimizationOptions()
+    options.useNonlinearComplementarityWithCost()
+    return create_hopper_optimization(hopper, x_0, x_f, N, options)
+
+def create_hopper_optimization_strict(hopper, x_0, x_f, N=101):
+    """Hopper optimization with strict complementarity constraints"""
+    options = ci.OptimizationOptions()
+    options.useNonlinearComplementarityWithConstantSlack()
+    return create_hopper_optimization(hopper, x_0, x_f, N, options)
+
 
 def solve_hopper_opt_and_save(trajopt, savedir):
     # Check if the save directory exists
