@@ -1,9 +1,10 @@
 import numpy as np 
-from scipy.special import erfinv
+from scipy.special import erfinv, erf
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
 from trajopt.constraints import NonlinearComplementarityFcn
 from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceConstrainedComplementarityLINEAR,ChanceConstrainedComplementarityNONLINEAR
 from trajopt.contactimplicit import OptimizationOptions, DecisionVariableList
+import pydrake.autodiffutils as ad
 
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     '''
@@ -388,29 +389,25 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
         return prob_density
 
-    def _cdf (self, x, mean, sd):
+    def _cdf (self, x, mean, sd):        
         cum_dist = np.zeros(len(x))
         A = self._erf((x - mean)/(sd * np.sqrt(2)))
         cum_dist = 1/2 *(1 + A)
         return cum_dist
         
     def _erf(self, x):
-        # save the sign of x
-        sign = np.zeros(x.shape)
-        sign[x >= 0] = 1
-        sign[x < 0] = -1
-        x = abs(x)
-        # constants
-        a1 =  0.254829592
-        a2 = -0.284496736
-        a3 =  1.421413741
-        a4 = -1.453152027
-        a5 =  1.061405429
-        p  =  0.3275911
-        # A&S formula 7.1.26
-        t = 1.0/(1.0 + p*x)
-        y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
-        return sign*y # erf(-x) = -erf(x)
+        # Check for autodiff or float implementations
+        if x.dtype == "float":
+            return erf(x)
+        else:
+            xval = ad.autoDiffToValueMatrix(x)
+            xgrad = ad.autoDiffToGradientMatrix(x)
+            cval = erf(xval)
+            cgrad = 2/np.sqrt(np.pi) * np.exp(-xval ** 2)
+            cgrad = cgrad * xgrad
+            return ad.initializeAutoDiffGivenGradientMatrix(cval, cgrad)
+
+
 
 class ChanceConstrainedComplementarityFcn(NonlinearComplementarityFcn):
     def __init__(self,  fcn, chance_param = [0.5, 0.5, 0], xdim = 0, zdim = 1, slack = 0):
