@@ -306,6 +306,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         plant.multibody.SetPositionsAndVelocities(context, x)    
         phi = plant.GetNormalDistances(context)
         lb, ub = self._chance_constraint(self.sigma)
+        
         return np.concatenate((phi - lb, fN, phi*fN - ub*fN))
     
     def _chance_constraint(self, sigma):

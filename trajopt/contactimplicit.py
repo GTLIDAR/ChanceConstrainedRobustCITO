@@ -152,7 +152,7 @@ class ContactImplicitDirectTranscription():
         elif self.options.ncc_implementation == NCCImplementation.NONLINEAR and self.options.slacktype == NCCSlackType.VARIABLE_SLACK:
             self.slacks = self.prog.NewContinuousVariables(rows=1,cols=self.num_time_samples, name='slacks')
         else:
-            self.slacks = self.prog.NewContinuousVariables(rows=2*self.numN + self.numT, cols=self.num_time_samples, name='slacks')
+            self.slacks = None
             
     def _add_dynamic_constraints(self):
         """Add constraints to enforce rigid body dynamics and joint limits"""
@@ -642,7 +642,7 @@ class ContactImplicitDirectTranscription():
 
     def reconstruct_slack_trajectory(self, soln):
         # if self.slacks:
-        if bool(self.slacks):
+        if self.slacks is not None:
             t = self.get_solution_times(soln)
             return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.slacks))
         else:
@@ -654,9 +654,9 @@ class ContactImplicitDirectTranscription():
         input = self.reconstruct_input_trajectory(soln)
         lforce = self.reconstruct_reaction_force_trajectory(soln)
         jlforce = self.reconstruct_limit_force_trajectory(soln)
-        # slacks = self.reconstruct_slack_trajectory(soln)
-        # return (state, input, lforce, jlforce, slacks)
-        return (state, input, lforce, jlforce)
+        slacks = self.reconstruct_slack_trajectory(soln)
+        return (state, input, lforce, jlforce, slacks)
+        #return (state, input, lforce, jlforce)
 
     def get_solution_times(self, soln):
         """Returns a vector of times for the knotpoints in the solution"""
@@ -667,12 +667,12 @@ class ContactImplicitDirectTranscription():
     def result_to_dict(self, soln):
         """ unpack the trajectories from the program result and store in a dictionary"""
         t = self.get_solution_times(soln)
-        # x, u, f, jl, s = self.reconstruct_all_trajectories(soln)
-        x, u, f, jl = self.reconstruct_all_trajectories(soln)
+        x, u, f, jl, s = self.reconstruct_all_trajectories(soln)
+        #x, u, f, jl = self.reconstruct_all_trajectories(soln)
         if jl is not None:
             jl = jl.vector_values(t)
-        # if s is not None:
-        #     s = s.vector_values(t)
+        if s is not None:
+            s = s.vector_values(t)
 
 
 
@@ -681,7 +681,7 @@ class ContactImplicitDirectTranscription():
                     "control": u.vector_values(t), 
                     "force": f.vector_values(t),
                     "jointlimit": jl,
-                    #"slacks": s,
+                    "slacks": s,
                     "solver": soln.get_solver_id().name(),
                     "success": soln.is_success(),
                     "exit_code": soln.get_solver_details().info,
