@@ -1,8 +1,8 @@
 import numpy as np 
 from scipy.special import erfinv, erf
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
-from trajopt.constraints import NonlinearComplementarityFcn
-from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceConstrainedComplementarityLINEAR,ChanceConstrainedComplementarityNONLINEAR
+from trajopt.constraints import ChanceComplementarityFactory, NonlinearComplementarityFcn
+from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceComplementarityFactory
 from trajopt.contactimplicit import OptimizationOptions, DecisionVariableList
 import pydrake.autodiffutils as ad
 
@@ -89,6 +89,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         numN = self._normal_forces.shape[0]
         numT = self._tangent_forces.shape[0]
         factory = ComplementarityFactory(self.options.ncc_implementation, self.options.slacktype)
+        chance_factory = ChanceComplementarityFactory(self.options.ncc_implementation)
         self.sliding_cstr = factory.create(self._sliding_velocity, xdim = self.x.shape[0] + numN, zdim=numT)
         # Determine the variables according to implementation and slacktype options
         self.distance_vars = DecisionVariableList([self.x, self._normal_forces])
@@ -142,7 +143,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
             # self.distance_cstr = self._normal_distance_cc
-            self.distance_cstr = ChanceConstrainedComplementarityLINEAR(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
+            self.distance_cstr = chance_factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta=self.beta, theta=self.theta, sigma=self.sigma)
+            #self.distance_cstr = ChanceConstrainedComplementarityLINEAR(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
             self.friccone_cstr = factory.create(self._friction_cone, self.x.shape[0] + numN + numT, numN)
             # self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
             #                                         xdim = self.x.shape[0] + self.numN + self.numT,
@@ -175,7 +177,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             #                                         slack = 0.)
             self.distance_cstr = factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN)
             # self.friccone_cstr = self._friction_cone_cc
-            self.friccone_cstr = ChanceConstrainedComplementarityNONLINEAR(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
+            self.friccone_cstr = chance_factory.create(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim = numN, beta = self.beta, theta=self.theta, sigma=self.sigma)
+            #self.friccone_cstr = ChanceConstrainedComplementarityNONLINEAR(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
             if self.erm_option is 1:
                 print("no uncertainty, friction cone cc relaxation")
                 for n in range(0, self.num_time_samples):
