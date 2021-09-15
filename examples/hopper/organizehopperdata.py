@@ -4,18 +4,20 @@ September 8, 2021
 """
 import os, shutil
 import utilities as utils
-from robusthoppingopt import RobustOptimizationOptions
+from robusthoppingopt import RobustOptimizationOptions, copy_config_to_data
 
-def copy_config_to_data(config, data):
-    data['sigma'] = config.sigma
-    data['theta'] = config.theta
-    data['beta'] = config.beta
-    data['chanceconstraints'] = (config.cc_option == 2)
-    data['erm'] = (config.erm_option == 2)
-    return data
+def correct():
+    dir = os.path.join("examples","hopper","robust_erm")
+    file1 = os.path.join(dir, "linear_NCC_sigma_3e-01_nochance","trajoptresults.pkl")
+    file2  = os.path.join(dir, 'linear_NCC_sigma_3e-02_nochance','trajoptresults.pkl')
+    data1 = utils.load(file1)
+    data2 = utils.load(file2)
+    data1['config'] = data2['config']
+    data1['config'].sigma = 3e-01
+    utils.save(file1, data1)
 
-def main(directory):
-    filename = 'trajoptresults.pkl'
+def split_config_from_data(directory, filename = 'trajoptresults.pkl'):
+    """Separate configuration data from trajectory optimization results and save separately"""
     if not os.path.isdir(directory):
         print(f"{directory} not found")
     for filepath in utils.find_filepath_recursive(directory, filename):
@@ -36,21 +38,11 @@ def main(directory):
             data = copy_config_to_data(config, data)
             utils.save(fullpath, data)
 
-        
-def correct():
-    dir = os.path.join("examples","hopper","robust_erm")
-    file1 = os.path.join(dir, "linear_NCC_sigma_3e-01_nochance","trajoptresults.pkl")
-    file2  = os.path.join(dir, 'linear_NCC_sigma_3e-02_nochance','trajoptresults.pkl')
-    data1 = utils.load(file1)
-    data2 = utils.load(file2)
-    data1['config'] = data2['config']
-    data1['config'].sigma = 3e-01
-    utils.save(file1, data1)
-
-def organize_chance_data(directory):
-    filename = 'trajoptresults.pkl'
+def organize_solutions_by_success(directory, filename='trajoptresults.pkl'):
     olddirs = []
     newdirs = []
+    if not os.path.isdir(directory):
+        print(f"{directory} does not exist")
     # Create the output directories
     successdir = os.path.join(directory, 'success')
     faildir = os.path.join(directory, 'fail')
@@ -60,22 +52,25 @@ def organize_chance_data(directory):
         os.makedirs(faildir)
     # Check each file
     for filepath in utils.find_filepath_recursive(directory, filename):
-        fullpath = os.path.join(filepath, filename)
-        print(f"Organizing file: {fullpath}")
-        data = utils.load(fullpath)
-        if data['success']:
-            newdir = os.path.join(successdir, filepath.replace(directory + os.sep,""))
+        if successdir in filepath or faildir in filepath:
+            print(f"{filepath} has already been sorted. Skipping.")
         else:
-            newdir = os.path.join(faildir, filepath.replace(directory + os.sep, ""))
-        olddirs.append(filepath)
-        newdirs.append(newdir)
+            fullpath = os.path.join(filepath, filename)
+            print(f"Organizing file: {fullpath}")
+            data = utils.load(fullpath)
+            if data['success']:
+                newdir = os.path.join(successdir, filepath.replace(directory + os.sep,""))
+            else:
+                newdir = os.path.join(faildir, filepath.replace(directory + os.sep, ""))
+            olddirs.append(filepath)
+            newdirs.append(newdir)
     # Move the directories
     for olddir, newdir in zip(olddirs, newdirs):
         print(f"Moving directory {olddir}")
         shutil.move(olddir, newdir)
-
+    return successdir
 
 if __name__ == "__main__":
     dir  = os.path.join("examples","hopper","robust_nonlinear","cc_erm_1e5_mod")
-    main(dir)
-    organize_chance_data(dir)
+    split_config_from_data(dir)
+    organize_solutions_by_success(dir)
