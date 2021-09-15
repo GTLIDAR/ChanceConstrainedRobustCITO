@@ -257,7 +257,12 @@ class ChanceConstrainedComplementarityNONLINEAR(ConstantSlackNonlinearComplement
         """
         x, z = np.split(vars, [self.xdim])
         fcn_val = self.fcn(x)
-        return np.concatenate([fcn_val - self.lb, z, fcn_val*z-self.ub*z], axis=0)
+        return np.concatenate([fcn_val, z, (fcn_val - self.ub)*z], axis=0)
+
+    def lower_bound(self):
+        lb = super().lower_bound()
+        lb[:self.zdim] = self.lb
+        return lb
 
     def chance_constraint(self):
         '''
@@ -268,6 +273,8 @@ class ChanceConstrainedComplementarityNONLINEAR(ConstantSlackNonlinearComplement
         lb = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
         ub = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
         return lb, ub
+
+    
 
 class VariableSlackNonlinearComplementarity(ComplementarityFunction):
     """
@@ -350,7 +357,7 @@ class ChanceConstrainedComplementarityLINEAR(ConstantSlackLinearEqualityCompleme
         """
         x, z, r = np.split(vars, np.cumsum([self.xdim, self.zdim]))
         fcn_val = self.fcn(x)
-        return np.concatenate((r-fcn_val, r - self.lb, z, r*z - self.ub*z), axis=0)
+        return np.concatenate((r-fcn_val, r - self.lb, z, (r - self.ub)*z ), axis=0)
 
     def chance_constraint(self):
         '''
@@ -361,6 +368,11 @@ class ChanceConstrainedComplementarityLINEAR(ConstantSlackLinearEqualityCompleme
         lb = -np.sqrt(2)*self.sigma*erfinv(2* self.beta - 1)
         ub = -np.sqrt(2)*self.sigma*erfinv(1 - 2*self.theta)
         return lb, ub
+
+    def lower_bound(self):
+        lowb =  super().lower_bound()
+        lowb[self.zdim:2*self.zdim] = self.lb
+        return lowb
 
 class VariableSlackLinearEqualityComplementarity(ComplementarityFunction):
     """
