@@ -360,6 +360,22 @@ def make_erm_nonlinear_options(basedir=None):
         configlist[-1].erm_multiplier = 10**5
     return configlist
 
+def make_erm_warmstarted_from_chance(basedir=None):
+    sigmas = [0.01, 0.05, 0.1, 0.3, 0.4]
+    configlist = []
+    for sigma in sigmas:
+        configlist.append(RobustOptimizationOptions())
+        configlist[-1].sigma = sigma
+        configlist[-1].useERMOnly()
+        configlist[-1].useNonlinearSlack()
+        configlist[-1].savedir = basedir
+        configlist[-1].erm_multiplier = 10**5
+        configlist[-1].warmstart = os.path.join("examples","hopper","robust_nonlinear","cc_erm_1e5_mod_ermstart","success",f"nonlinear_NCC_sigma_{sigma:.0e}_theta_9e-01_beta_5e-01","trajoptresults.pkl")
+    return configlist
+
+def main_erm_warmstarted(basedir):
+    configs = make_erm_warmstarted_from_chance(basedir)
+    run_configs_parallel(configs)
 
 def main_erm_nonlinear(basedir):
     configs = make_erm_nonlinear_options(basedir)
@@ -372,7 +388,7 @@ def run_configs_parallel(configs):
     print(f"{sum(successes)} of {len(successes)} solved successfully")
 
 def make_cc_nonlinear_options(basedir):
-    sigmas = [0.01, 0.05, 0.1, 0.3, 0.4]
+    sigmas = [0.1, 0.3]
     thetas = [0.51, 0.6, 0.7, 0.8, 0.9]
     configlist = []
     for sigma in sigmas:
@@ -385,7 +401,7 @@ def make_cc_nonlinear_options(basedir):
             configlist[-1].useNonlinearSlack()
             configlist[-1].savedir = basedir
             configlist[-1].erm_multiplier = 10**5
-            configlist[-1].warmstart = os.path.join("examples","hopper","robust_nonlinear","erm_1e5","success",f"nonlinear_NCC_sigma_{sigma:.0e}_nochance","trajoptresults.pkl")
+            #configlist[-1].warmstart = os.path.join("examples","hopper","robust_nonlinear","erm_1e5","success",f"nonlinear_NCC_sigma_{sigma:.0e}_nochance","trajoptresults.pkl")
     return configlist
 
 def main_cc_nonlinear(basedir):
@@ -402,4 +418,5 @@ if __name__ == "__main__":
     #main_cc_lowmult(os.path.join(lowdir,'cc'))
     #main_cc(basedir = os.path.join('examples','hopper','robust_erm_hotfix_1e6_linear_take2','erm_cc'))
     #main_erm_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5_scale2'))
-    main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod_ermstart'))
+    #main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod'))
+    main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))

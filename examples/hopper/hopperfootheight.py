@@ -56,8 +56,8 @@ def compare_multiple_hoppers(files, savename):
     hopper.Finalize()
     compare_foot_base_height(hopper, xlist, labels, show=False, savename=savename)
 
-def main_compare_ERM():
-    directory = os.path.join('examples','hopper','robust_nonlinear','erm_1e5','success')
+def compare_ERM_footheights(directory, savename='FootHeightComparison.png'):
+    
     file = 'trajoptresults.pkl'
     xlist = []
     labels = []
@@ -71,13 +71,14 @@ def main_compare_ERM():
     data = utils.load(os.path.join("examples","hopper","reference_linear","strict_nocost","trajoptresults.pkl"))
     xlist.append(PiecewisePolynomial.FirstOrderHold(data['time'], data['state']))
     labels.append(f"Reference")
-    savename = os.path.join(directory, 'FootHeightComparison.png')
+    savename = os.path.join(directory, savename)
     # Create the hopper
     hopper = Hopper()
     hopper.Finalize()
     compare_foot_base_height(hopper, xlist, labels, show=False, savename=savename)
+    print(f"Comparison saved to {savename}")
 
-def main_compare_cc(erm_dir, cc_dir, ref_dir = None):
+def compare_chance_footheights(erm_dir, cc_dir, ref_dir = None):
     # Create the hopper
     hopper = Hopper()
     hopper.Finalize()
@@ -120,7 +121,7 @@ def main_compare_cc(erm_dir, cc_dir, ref_dir = None):
             cc_shortlabel.append("Referece")
             cc_shortlist.append(reference)
         compare_foot_base_height(hopper, cc_shortlist, cc_shortlabel, show=False, savename=os.path.join(cc_dir, savestr))
-
+        print(f"Comparison saved to {os.path.join(cc_dir, savestr)}")
 
 def main():
     directory = os.path.join('examples','hopper','robust_erm_linear_hotfix_tol1e-8 _scale1_erm')
@@ -138,5 +139,5 @@ if __name__ == "__main__":
     erm_dir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5','success')
     cc_dir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod','success')
     ref_dir = os.path.join('examples','hopper','reference_linear','strict_nocost')
-    main_compare_cc(erm_dir, cc_dir, ref_dir)
-    # main_compare_ERM()
+    compare_chance_footheights(erm_dir, cc_dir, ref_dir)
+    # compare_ERM_footheights(os.path.join(directory = os.path.join('examples','hopper','robust_nonlinear','erm_1e5','success')))

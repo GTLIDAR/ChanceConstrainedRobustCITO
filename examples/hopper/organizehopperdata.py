@@ -46,9 +46,9 @@ def organize_solutions_by_success(directory, filename='trajoptresults.pkl'):
     # Create the output directories
     successdir = os.path.join(directory, 'success')
     faildir = os.path.join(directory, 'fail')
-    if os.path.isdir(successdir):
+    if not os.path.isdir(successdir):
         os.makedirs(successdir)
-    if os.path.isdir(faildir):
+    if not os.path.isdir(faildir):
         os.makedirs(faildir)
     # Check each file
     for filepath in utils.find_filepath_recursive(directory, filename):
