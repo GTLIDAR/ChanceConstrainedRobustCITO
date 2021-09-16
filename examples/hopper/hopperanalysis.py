@@ -12,20 +12,20 @@ from examples.hopper.hopperfootheight import compare_chance_footheights, compare
 from examples.hopper.robusthoppingopt import RobustOptimizationOptions
 
 # File Directories
-REF_DIR = os.path.join("examples","hopper","reference_highfriction","strict")
-ERM_DIR = os.path.join("examples","hopper","robust_highfriction","erm_1e5","success")
-CCS_DIR = os.path.join("examples","hopper","robust_highfriction","cc_erm_1e5")
+REF_DIR = os.path.join("examples","hopper","reference_linear","strict_nocost")
+ERM_DIR = os.path.join("examples","hopper","robust_nonlinear","erm_decimeters_1e3")
+CCS_DIR = None #os.path.join("examples","hopper","robust_highfriction","cc_erm_1e5")
 
 # Anaylsis Switches
-MERIT_REF = True
+MERIT_REF = False
 
-ORGANIZE_ERM = False
+ORGANIZE_ERM = True
 HEIGHT_ERM = True
-MERIT_ERM = True
+MERIT_ERM = False
 
-ORGANIZE_CC = True
-HEIGHT_CC = True
-MERIT_CC = True
+ORGANIZE_CC = False
+HEIGHT_CC = False
+MERIT_CC = False
 
 # Organize the data
 if ORGANIZE_ERM and ERM_DIR is not None:

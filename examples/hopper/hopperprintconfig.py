@@ -16,5 +16,5 @@ def main(directory):
             print(f"{key}: {attrs[key]} ")
 
 if __name__ == '__main__':
-    dir = os.path.join("examples","hopper","robust_erm_hotfix_1e6_linear","success","erm","linear_NCC_sigma_1e-01_nochance")
+    dir = os.path.join("examples","hopper","robust_nonlinear","erm_1e5","success","nonlinear_NCC_sigma_1e-01_nochance")
     main(dir)

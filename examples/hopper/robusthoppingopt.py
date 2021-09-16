@@ -417,7 +417,7 @@ def main_cc_nonlinear(basedir):
 
 
 def make_erm_lengthscaled(basedir):
-    sigmas = [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
+    sigmas = [0.01, 0.03, 0.05, 0.1, 0.3, 0.5, 1.0, 3.0, 5.0, 10.0]
     configlist = []
     for sigma in sigmas:
         configlist.append(RobustOptimizationOptions())
@@ -425,13 +425,57 @@ def make_erm_lengthscaled(basedir):
         configlist[-1].useERMOnly()
         configlist[-1].useNonlinearSlack()
         configlist[-1].savedir = basedir
-        configlist[-1].erm_multiplier = 10**5
-        configlist[-1].distance_scale = 100
-        configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict','trajoptresults.pkl')
+        configlist[-1].erm_multiplier = 10**3
+        configlist[-1].distance_scale = 10
+        configlist[-1].warmstart = os.path.join('examples','hopper','reference_linear','strict_nocost','trajoptresults.pkl')
     return configlist
 
 def main_erm_lengthscaled(basedir):
     configs = make_erm_lengthscaled(basedir)
+    run_configs_parallel(configs)
+
+def make_cc_lengthscaled(basedir):
+    sigmas = [0.01, 0.03, 0.05, 0.1, 0.3, 0.5, 1.0, 3.0, 5.0, 10.0]
+    thetas = [0.51, 0.6, 0.7, 0.8, 0.9]
+    configlist = []
+    for sigma in sigmas:
+        for theta in thetas:
+            configlist.append(RobustOptimizationOptions())
+            configlist[-1].sigma = sigma
+            configlist[-1].theta = theta
+            configlist[-1].beta = 0.5
+            configlist[-1].useERMOnly()
+            configlist[-1].useNonlinearSlack()
+            configlist[-1].savedir = basedir
+            configlist[-1].erm_multiplier = 10**3
+            configlist[-1].distance_scale = 10
+            configlist[-1].warmstart = os.path.join('examples','hopper','reference_linear','strict_nocost','trajoptresults.pkl')
+    return configlist
+
+def main_cc_lengthscaled(basedir):
+    configs = make_cc_lengthscaled(basedir)
+    run_configs_parallel(configs)
+
+def make_cc_lengthscaled_warmstarted(basedir):
+    sigmas = [0.01, 0.03, 0.05, 0.1, 0.3, 0.5, 1.0, 3.0, 5.0, 10.0]
+    thetas = [0.51, 0.6, 0.7, 0.8, 0.9]
+    configlist = []
+    for sigma in sigmas:
+        for theta in thetas:
+            configlist.append(RobustOptimizationOptions())
+            configlist[-1].sigma = sigma
+            configlist[-1].theta = theta
+            configlist[-1].beta = 0.5
+            configlist[-1].useERMOnly()
+            configlist[-1].useNonlinearSlack()
+            configlist[-1].savedir = basedir
+            configlist[-1].erm_multiplier = 10**3
+            configlist[-1].distance_scale = 10
+            configlist[-1].warmstart = os.path.join('examples','hopper','robust_nonlinear','decimeters_1e3',"erm", f"nonlinear_NCC_sigma_{sigma:.0e}_nochance", 'trajoptresults.pkl')
+    return configlist
+
+def main_cc_lengthscaled_warmstarted(basedir):
+    configs = make_cc_lengthscaled_warmstarted(basedir)
     run_configs_parallel(configs)
 
 if __name__ == "__main__":
@@ -445,5 +489,7 @@ if __name__ == "__main__":
     #main_erm_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5_scale2'))
     #main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod'))
     #main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))
-    main_erm_nonlinear(basedir=os.path.join("examples","hopper","robust_highfriction","erm_1e5_centimeters"))
+    main_erm_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3", "erm"))
+    main_cc_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc"))
+    main_cc_lengthscaled_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc_warmstarted"))
     #main_cc_nonlinear(basedir = os.path.join('example','hopper','robust_highfriction','cc_erm_1e5'))
