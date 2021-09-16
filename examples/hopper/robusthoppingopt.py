@@ -116,6 +116,7 @@ def create_robust_optimization(robustconfig):
     
     # Create the hopper
     hopper = create_hopper()
+    hopper.terrain.friction = 1.
     x0, xf = boundary_conditions(hopper)
     # Create the trajectory optimization
     max_time = 3
@@ -358,6 +359,7 @@ def make_erm_nonlinear_options(basedir=None):
         configlist[-1].useNonlinearSlack()
         configlist[-1].savedir = basedir
         configlist[-1].erm_multiplier = 10**5
+        configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict','trajoptresults.pkl')
     return configlist
 
 def make_erm_warmstarted_from_chance(basedir=None):
@@ -388,7 +390,7 @@ def run_configs_parallel(configs):
     print(f"{sum(successes)} of {len(successes)} solved successfully")
 
 def make_cc_nonlinear_options(basedir):
-    sigmas = [0.1, 0.3]
+    sigmas = [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
     thetas = [0.51, 0.6, 0.7, 0.8, 0.9]
     configlist = []
     for sigma in sigmas:
@@ -401,8 +403,9 @@ def make_cc_nonlinear_options(basedir):
             configlist[-1].useNonlinearSlack()
             configlist[-1].savedir = basedir
             configlist[-1].erm_multiplier = 10**5
-            #configlist[-1].warmstart = os.path.join("examples","hopper","robust_nonlinear","erm_1e5","success",f"nonlinear_NCC_sigma_{sigma:.0e}_nochance","trajoptresults.pkl")
+            configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict','trajoptresults.pkl')
     return configlist
+
 
 def main_cc_nonlinear(basedir):
     configs = make_cc_nonlinear_options(basedir)
@@ -419,4 +422,6 @@ if __name__ == "__main__":
     #main_cc(basedir = os.path.join('examples','hopper','robust_erm_hotfix_1e6_linear_take2','erm_cc'))
     #main_erm_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5_scale2'))
     #main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod'))
-    main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))
+    #main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))
+    #main_erm_nonlinear(basedir=os.path.join("examples","hopper","robust_highfriction","erm_1e5"))
+    main_cc_nonlinear(basedir = os.path.join('example','hopper','robust_highfriction','cc_erm_1e5'))

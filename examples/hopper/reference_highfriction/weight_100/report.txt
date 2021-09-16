@@ -1,0 +1,83 @@
+ContactImplicitDirectTranscription with Hopper on FlatTerrainwith height 0.0 and friction 1
+Source files:
+	/workspaces/pyCITO/systems/hopper/urdf/footedhopper.urdf
+Friction discretization level: 1
+
+	Knot points: 101
+	Time range: [3.0,3.0]
+	
+Date: September 15, 2021
+
+Problem has 3231 variables, 503 cost terms, and 606 constraints
+
+CostRelaxedNonlinearComplementarity on the function _normal_distance with input dimension 10 and output dimension 2
+	Cost weight: 100
+CostRelaxedNonlinearComplementarity on the function _sliding_velocity with input dimension 12 and output dimension 8
+	Cost weight: 100
+CostRelaxedNonlinearComplementarity on the function _friction_cone with input dimension 20 and output dimension 2
+	Cost weight: 100
+
+Normal Dissipation Enforced? False
+Equal time steps enforced? True
+
+State Constraints: 
+	x[0, [0 1 2 3 4 5 6 7 8 9]] = [ 0.          1.5         0.72273432 -1.44546857  2.29353058  0.
+  0.          0.          0.          0.        ]
+	x[100, [0 1 2 3 4 5 6 7 8 9]] = [ 4.          1.5         0.72273432 -1.44546857  2.29353058  0.
+  0.          0.          0.          0.        ]
+
+Running Costs: 
+	ControlCost: Quadratic cost on u with weights Q = 
+[[0.005 0.    0.   ]
+ [0.    0.005 0.   ]
+ [0.    0.    0.005]] 
+	and bias b = 
+[0. 0. 0.]
+	StateCost: Quadratic cost on x with weights Q = 
+[[ 0.5  0.   0.   0.   0.   0.   0.   0.   0.   0. ]
+ [ 0.   5.   0.   0.   0.   0.   0.   0.   0.   0. ]
+ [ 0.   0.   5.   0.   0.   0.   0.   0.   0.   0. ]
+ [ 0.   0.   0.  50.   0.   0.   0.   0.   0.   0. ]
+ [ 0.   0.   0.   0.  50.   0.   0.   0.   0.   0. ]
+ [ 0.   0.   0.   0.   0.   0.5  0.   0.   0.   0. ]
+ [ 0.   0.   0.   0.   0.   0.   0.5  0.   0.   0. ]
+ [ 0.   0.   0.   0.   0.   0.   0.   0.5  0.   0. ]
+ [ 0.   0.   0.   0.   0.   0.   0.   0.   0.5  0. ]
+ [ 0.   0.   0.   0.   0.   0.   0.   0.   0.   0.5]] 
+	and bias b = 
+[ 4.          1.5         0.72273432 -1.44546857  2.29353058  0.
+  0.          0.          0.          0.        ]
+
+Final Costs: 
+Solver: SnoptSolver
+Solver halted after 0 hours, 0 minutes, and 6.29 seconds
+Solved with SNOPT/fortran
+Optimization successful? True
+Optimal cost = 208.15540369890465
+SNOPT Exit Status 1: optimality conditions satisfied
+Infeasible constraints: set()
+Individual Costs: 
+normal_distanceCost: 	 1.2847E-09
+sliding_velocityCost: 	 -7.4241E-09
+friction_coneCost: 	 -4.9018E-09
+ControlCost: 	 9.4653E+01
+StateCost: 	 1.1350E+02
+
+Constraint Violations: 
+dynamics: 	 9.9755E-12
+joint_limits: 	 3.1922E-20
+normal_distance: 	 8.5169E-07
+sliding_velocity: 	 5.3199E-09
+friction_cone: 	 1.4088E-12
+StateConstraint: 	 5.2269E-08
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00
+Solver options:
+	 Iterations limit: 100000
+	 Major iterations limit: 5000
+	 Minor iterations limit: 1000
+	 Superbasics limit: 1500
+	 Scale option: 1
+	 Elastic weight: 100000
+
+Solver halted after 4 iterations

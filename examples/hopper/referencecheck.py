@@ -43,12 +43,12 @@ def create_hopper_opt(hopper, x0, xf, N=101):
     # Set the force scaling
     trajopt.force_scaling = 1
     # Add in running cost
-    # R = 0.01*np.eye(3)
-    # Q = np.diag([1, 10, 10, 100, 100, 1, 1, 1, 1, 1])
-    # R = R/2
-    # Q = Q/2
-    # trajopt.add_quadratic_running_cost(R, np.zeros((3,)), vars=[trajopt.u], name='ControlCost')
-    # trajopt.add_quadratic_running_cost(Q, xf, vars=[trajopt.x], name='StateCost')
+    R = 0.01*np.eye(3)
+    Q = np.diag([1, 10, 10, 100, 100, 1, 1, 1, 1, 1])
+    R = R/2
+    Q = Q/2
+    trajopt.add_quadratic_running_cost(R, np.zeros((3,)), vars=[trajopt.u], name='ControlCost')
+    trajopt.add_quadratic_running_cost(Q, xf, vars=[trajopt.x], name='StateCost')
 
     return trajopt
 
@@ -78,6 +78,18 @@ def create_hopper_opt_linear(hopper, x0, xf, N=101):
 
     return trajopt
 
+def make_figures_and_save(trajopt, result, savedir):
+    # Save the outputs
+    report = utils.printProgramReport(result, trajopt.prog, terminal=False, filename=os.path.join(savedir, 'report.txt'), verbose=True)
+    utils.save(os.path.join(savedir, 'trajoptresults.pkl'), trajopt.result_to_dict(result))
+    # Save the cost figure
+    trajopt.printer.save_and_close(os.path.join(savedir, 'CostsAndConstraints.png'))
+    # Plot and save the trajectories
+    xtraj, utraj, ftraj, jltraj, _ = trajopt.reconstruct_all_trajectories(result)
+    figs, _ = trajopt.plant_f.plot_trajectories(xtraj, utraj, ftraj, jltraj, show=False, savename=os.path.join(savedir, 'opt.png'))
+    for fig in figs:
+        plt.close(fig)
+
 def main(filename, outdir=None):
     # Create the optimization
     hopper = create_hopper()
@@ -102,17 +114,30 @@ def main(filename, outdir=None):
         make_figures_and_save(trajopt, result, outdir)
     return result.is_success()
 
-def make_figures_and_save(trajopt, result, savedir):
-    # Save the outputs
-    report = utils.printProgramReport(result, trajopt.prog, terminal=False, filename=os.path.join(savedir, 'report.txt'), verbose=True)
-    utils.save(os.path.join(savedir, 'trajoptresults.pkl'), trajopt.result_to_dict(result))
-    # Save the cost figure
-    trajopt.printer.save_and_close(os.path.join(savedir, 'CostsAndConstraints.png'))
-    # Plot and save the trajectories
-    xtraj, utraj, ftraj, jltraj, _ = trajopt.reconstruct_all_trajectories(result)
-    figs, _ = trajopt.plant_f.plot_trajectories(xtraj, utraj, ftraj, jltraj, show=False, savename=os.path.join(savedir, 'opt.png'))
-    for fig in figs:
-        plt.close(fig)
+def main_highfriction(filename, outdir=None):
+    # Create the optimization
+    hopper = create_hopper()
+    hopper.terrain.friction = 1.
+    x0, xf = boundary_conditions(hopper)
+    trajopt = create_hopper_opt(hopper, x0, xf)
+    # Load the warmstart
+    data = utils.load(filename)
+    # Initialize the trajectory optimization
+    trajopt.set_initial_guess(xtraj=data['state'], utraj=data['control'], ltraj=data['force'], jltraj=data['jointlimit'])
+    # Solve the resulting problem
+    solver = SnoptSolver()
+    solverid = solver.solver_id()
+    trajopt.prog.SetSolverOption(solverid, "Iterations limit", 100000)
+    trajopt.prog.SetSolverOption(solverid, "Major iterations limit", 100)
+    trajopt.prog.SetSolverOption(solverid, "Minor iterations limit", 1000)
+    trajopt.prog.SetSolverOption(solverid, "Superbasics limit", 1500)
+    trajopt.prog.SetSolverOption(solverid, "Scale option", 1)
+    trajopt.prog.SetSolverOption(solverid, "Elastic Weight", 10**5)
+    #Solve it
+    result = solver.Solve(trajopt.prog)
+    if outdir is not None:
+        make_figures_and_save(trajopt, result, outdir)
+    return result.is_success()
 
 def main_linear(file, outdir):
     # Create the optimization
@@ -139,7 +164,7 @@ def main_linear(file, outdir):
 
 
 if __name__ == "__main__": 
-    file = os.path.join("examples","hopper","reference_linear","weight_10000","trajoptresults.pkl")
-    outdir = os.path.join("examples","hopper","reference_linear","strict_linear_equality_scale2")
-    success = main_linear(file, outdir)
+    file = os.path.join("examples","hopper","reference_highfriction","weight_10000","trajoptresults.pkl")
+    outdir = os.path.join("examples","hopper","reference_highfriction","strict")
+    success = main_highfriction(file, outdir)
     print(f"Check successful? {success}")

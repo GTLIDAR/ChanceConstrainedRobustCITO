@@ -51,13 +51,14 @@ def compare_multiple_hoppers(files, savename):
     for file in files:
         data = utils.load(file)
         xlist.append(PiecewisePolynomial.FirstOrderHold(data['time'], data['state']))
-        labels.append(f"\sigma = {data['sigma']}")
+        labels.append(f"$\sigma$ = {data['sigma']}")
     hopper = Hopper()
     hopper.Finalize()
     compare_foot_base_height(hopper, xlist, labels, show=False, savename=savename)
 
-def compare_ERM_footheights(directory, savename='FootHeightComparison.png'):
-    
+def compare_ERM_footheights(directory, reffile=None, savename='FootHeightComparison.png'):
+    if reffile is None:
+        reffile = os.path.join("examples","hopper","reference_linear","strict_nocost","trajoptresults.pkl")
     file = 'trajoptresults.pkl'
     xlist = []
     labels = []
@@ -66,9 +67,9 @@ def compare_ERM_footheights(directory, savename='FootHeightComparison.png'):
         fullpath = os.path.join(pathname, file)
         data = utils.load(fullpath)
         xlist.append(PiecewisePolynomial.FirstOrderHold(data['time'], data['state']))
-        labels.append(f"\sigma = {data['sigma']}")
+        labels.append(f"$\sigma$ = {data['sigma']}")
     # Reference case
-    data = utils.load(os.path.join("examples","hopper","reference_linear","strict_nocost","trajoptresults.pkl"))
+    data = utils.load(reffile)
     xlist.append(PiecewisePolynomial.FirstOrderHold(data['time'], data['state']))
     labels.append(f"Reference")
     savename = os.path.join(directory, savename)
