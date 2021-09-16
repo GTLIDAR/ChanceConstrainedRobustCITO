@@ -33,6 +33,7 @@ class RobustOptimizationOptions():
         }
         self.savedir = None
         self.warmstart = None
+        self.distance_scale = 1.
 
     def parse(self):
         return self.chance_params, self.erm_params, self.cc_option, self.erm_option, self.ncc_mode
@@ -158,6 +159,8 @@ def create_robust_optimization(robustconfig):
     trajopt.enable_cost_display('figure', title=robustconfig.tostring())
     # Set the reaction force scaling
     trajopt.force_scale = 1
+    # Set the distance scaling
+    trajopt.distance_scale = robustconfig.distance_scale
     return trajopt
 
 def solve_robust_optimization(trajopt, config, savedir=None):
@@ -359,7 +362,8 @@ def make_erm_nonlinear_options(basedir=None):
         configlist[-1].useNonlinearSlack()
         configlist[-1].savedir = basedir
         configlist[-1].erm_multiplier = 10**5
-        configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict','trajoptresults.pkl')
+        configlist[-1].solveroptions['Scale option'] = 2
+        configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict_scale2','trajoptresults.pkl')
     return configlist
 
 def make_erm_warmstarted_from_chance(basedir=None):
@@ -412,6 +416,24 @@ def main_cc_nonlinear(basedir):
     run_configs_parallel(configs)
 
 
+def make_erm_lengthscaled(basedir):
+    sigmas = [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
+    configlist = []
+    for sigma in sigmas:
+        configlist.append(RobustOptimizationOptions())
+        configlist[-1].sigma = sigma
+        configlist[-1].useERMOnly()
+        configlist[-1].useNonlinearSlack()
+        configlist[-1].savedir = basedir
+        configlist[-1].erm_multiplier = 10**5
+        configlist[-1].distance_scale = 100
+        configlist[-1].warmstart = os.path.join('examples','hopper','reference_highfriction','strict','trajoptresults.pkl')
+    return configlist
+
+def main_erm_lengthscaled(basedir):
+    configs = make_erm_lengthscaled(basedir)
+    run_configs_parallel(configs)
+
 if __name__ == "__main__":
     # main_erm(basedir = os.path.join('examples','hopper','robust_erm_hotfix_1e6_linear_take2','erm'))
     # main_erm_tight(basedir = os.path.join('examples','hopper','robust_erm_linear_hotfix_tol1e-8_scale1_erm'))
@@ -423,5 +445,5 @@ if __name__ == "__main__":
     #main_erm_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5_scale2'))
     #main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod'))
     #main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))
-    #main_erm_nonlinear(basedir=os.path.join("examples","hopper","robust_highfriction","erm_1e5"))
-    main_cc_nonlinear(basedir = os.path.join('example','hopper','robust_highfriction','cc_erm_1e5'))
+    main_erm_nonlinear(basedir=os.path.join("examples","hopper","robust_highfriction","erm_1e5_centimeters"))
+    #main_cc_nonlinear(basedir = os.path.join('example','hopper','robust_highfriction','cc_erm_1e5'))

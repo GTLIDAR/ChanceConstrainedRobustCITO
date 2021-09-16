@@ -131,7 +131,7 @@ def main_highfriction(filename, outdir=None):
     trajopt.prog.SetSolverOption(solverid, "Major iterations limit", 100)
     trajopt.prog.SetSolverOption(solverid, "Minor iterations limit", 1000)
     trajopt.prog.SetSolverOption(solverid, "Superbasics limit", 1500)
-    trajopt.prog.SetSolverOption(solverid, "Scale option", 1)
+    trajopt.prog.SetSolverOption(solverid, "Scale option", 2)
     trajopt.prog.SetSolverOption(solverid, "Elastic Weight", 10**5)
     #Solve it
     result = solver.Solve(trajopt.prog)
@@ -165,6 +165,6 @@ def main_linear(file, outdir):
 
 if __name__ == "__main__": 
     file = os.path.join("examples","hopper","reference_highfriction","weight_10000","trajoptresults.pkl")
-    outdir = os.path.join("examples","hopper","reference_highfriction","strict")
+    outdir = os.path.join("examples","hopper","reference_highfriction","strict_scale2")
     success = main_highfriction(file, outdir)
     print(f"Check successful? {success}")
