@@ -444,7 +444,7 @@ def make_cc_lengthscaled(basedir):
             configlist[-1].sigma = sigma
             configlist[-1].theta = theta
             configlist[-1].beta = 0.5
-            configlist[-1].useERMOnly()
+            configlist[-1].useDistanceChanceConstraints()
             configlist[-1].useNonlinearSlack()
             configlist[-1].savedir = basedir
             configlist[-1].erm_multiplier = 10**3
@@ -466,12 +466,12 @@ def make_cc_lengthscaled_warmstarted(basedir):
             configlist[-1].sigma = sigma
             configlist[-1].theta = theta
             configlist[-1].beta = 0.5
-            configlist[-1].useERMOnly()
+            configlist[-1].useDistanceChanceConstraints()
             configlist[-1].useNonlinearSlack()
             configlist[-1].savedir = basedir
             configlist[-1].erm_multiplier = 10**3
             configlist[-1].distance_scale = 10
-            configlist[-1].warmstart = os.path.join('examples','hopper','robust_nonlinear','decimeters_1e3',"erm", f"nonlinear_NCC_sigma_{sigma:.0e}_nochance", 'trajoptresults.pkl')
+            configlist[-1].warmstart = os.path.join('examples','hopper','robust_nonlinear','decimeters_1e3',"erm_restarted","success", f"nonlinear_NCC_sigma_{sigma:.0e}_nochance", 'trajoptresults.pkl')
     return configlist
 
 def main_cc_lengthscaled_warmstarted(basedir):
@@ -489,7 +489,7 @@ if __name__ == "__main__":
     #main_erm_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','erm_1e5_scale2'))
     #main_cc_nonlinear(basedir = os.path.join('examples','hopper','robust_nonlinear','cc_erm_1e5_mod'))
     #main_erm_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","erm_1e5_warmstarted_from_chance"))
-    main_erm_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3", "erm"))
-    main_cc_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc"))
-    main_cc_lengthscaled_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc_warmstarted"))
+    #main_erm_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3", "erm"))
+    #main_cc_lengthscaled(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc_from_restart"))
+    main_cc_lengthscaled_warmstarted(basedir=os.path.join("examples","hopper","robust_nonlinear","decimeters_1e3","erm_cc_from_restart"))
     #main_cc_nonlinear(basedir = os.path.join('example','hopper','robust_highfriction','cc_erm_1e5'))

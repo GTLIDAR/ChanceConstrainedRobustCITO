@@ -2,11 +2,15 @@
 Script for generating merit score figures
 
 """
-import os
+import os, csv
 import numpy as np
 import matplotlib.pyplot as plt
 import decorators as deco
 import utilities as utils
+
+import matplotlib as mpl
+mpl.rcParams['pdf.fonttype'] = 42
+
 
 def load_data_recursive(directory, filename = 'trajoptresults.pkl'):
     data = [utils.load(os.path.join(file, filename)) for file in utils.find_filepath_recursive(directory, filename)]
@@ -36,7 +40,6 @@ def get_erm_data(directory, scorename):
     meritscores = meritscores[:, sort_idx[0,:]]
     sensitivities = sensitivities[:, sort_idx[0,:]]
     return  meritscores, sensitivities, sigmas
-
 
 def get_chance_data(directory, scorename):
     # Load the data and filter out only the cases for which beta and theta are the same
@@ -86,14 +89,14 @@ def get_chance_data_hopper(directory, scorename):
 def plot_sensitivities(sigmas, data, nominal, labels):
     """Make a plot comparing the sensitivity scores"""
     fig, axs = plt.subplots(1,1)
+    # Add in the nominal data line
+    ref = nominal*np.ones_like(sigmas)
+    axs.plot(sigmas[0,:], ref[0,:], label="Reference", linewidth=1.5, linestyle='-')   
     for n in range(data.shape[0]):
         axs.plot(sigmas[0,:], data[n,:], label=labels[n], linewidth=1.5, marker='o')
     axs.set_yscale('symlog', linthreshy=1e-7)
-    #axs.set_xscale('log')
+    axs.set_xscale('log')
     axs.grid(True)
-    # Add in the nominal data line
-    ref = nominal*np.ones_like(sigmas)
-    axs.plot(sigmas[0,:], ref[0,:], label="Reference", linewidth=1.5, linestyle='--')   
     axs.set_xlabel('Uncertainty ($\sigma$)')
     axs.set_ylabel('Sensitivity Score')
     axs.legend()
@@ -104,14 +107,14 @@ def plot_sensitivities(sigmas, data, nominal, labels):
 def plot_infeasibilities(sigmas, data, nominal, labels):
     """Make a plot comparing the infeasibility scores"""
     fig, axs = plt.subplots(1,1)
-    for n in range(data.shape[0]):
-        axs.plot(sigmas[0,:], data[n,:], label=labels[n], linewidth=1.5, marker='o')
-    axs.set_yscale('symlog', linthreshy=1e-7)
-    #axs.set_xscale('log')
-    axs.grid(True)
     # Add in the nominal data line
     ref = nominal*np.ones_like(sigmas)
     axs.plot(sigmas[0,:], ref[0,:], label="Reference", linewidth=1.5, linestyle='--')
+    for n in range(data.shape[0]):
+        axs.plot(sigmas[0,:], data[n,:], label=labels[n], linewidth=1.5, marker='o')
+    axs.set_yscale('symlog', linthreshy=1e-7)
+    axs.set_xscale('log')
+    axs.grid(True)
     axs.set_xlabel('Uncertainty ($\sigma$)')
     axs.set_ylabel('Merit Score')
     axs.legend()
@@ -147,6 +150,57 @@ def compare_hopper_merit(nominal_dir, erm_dir, erm_cc_dir, outdir):
     plot_infeasibilities(common_sigma, merit_data, nominal_merit, labels, show=False, savename=os.path.join(outdir, 'HopperMerit.png'))
     plot_sensitivities(common_sigma, sensitivity_data, nominal_sensitivity, labels, show=False, savename=os.path.join(outdir,'HopperSensitivity.png'))
     print(f'Finished. Plot saved at {outdir}')
+
+def save_merit_to_table(nominal_dir, erm_dir, erm_cc_dir, outdir):
+    # Load the data
+    scorename = 'normal_distance'
+    nominal_merit, nominal_sensitivity = get_nominal_data(nominal_dir, scorename)
+    erm_merit, erm_sensitivity, sigmas = get_erm_data(erm_dir, scorename)
+    cc_merit, cc_sensitivity, labels, cc_sigmas = get_chance_data_hopper(erm_cc_dir, scorename)
+    # Combine the data
+    sigmas = sigmas.tolist()[0]
+    merit_data, sensitivity_data, common_sigma = combine_erm_cc_data(erm_merit, erm_sensitivity, sigmas, cc_merit, cc_sensitivity, cc_sigmas)
+
+    sens_file = os.path.join(outdir,'Sensitivity.csv')
+    common_sigma.insert(0, 'Sigma')
+    labels.insert(0, "ERM")
+    # Copy the nominal merit
+    nominal_merit = [nominal_merit]*merit_data.shape[1]
+    nominal_sensitivity = [nominal_sensitivity]*sensitivity_data.shape[1]
+
+    # Write the merit data
+    merit_file = os.path.join(outdir, 'Merit.csv')
+    with open(merit_file, 'w', encoding='UTF8', newline='') as file:
+        writer = csv.writer(file)
+        #Write the header
+        writer.writerow(common_sigma)
+        # Write the nominal data
+        nominal_merit.insert(0, 'Reference')
+        writer.writerow(nominal_merit)
+        # Write the remaining rows
+        for n in range(merit_data.shape[0]):
+            data = merit_data[n].tolist()
+            data.insert(0, labels[n])
+            writer.writerow(data)
+    print(f"Merit data saved to {merit_file}")
+
+    # Write the sensitivity data
+    with open(sens_file, 'w', encoding='UTF8', newline='') as file:
+        writer = csv.writer(file)
+        # Write header
+        writer.writerow(sigmas)
+        # Write nominal data
+        nominal_sensitivity.insert(0, 'Reference')
+        writer.writerow(nominal_sensitivity)
+        # Write remaining data
+        for n in range(sensitivity_data.shape[0]):
+            data = sensitivity_data[n].tolist()
+            data.insert(0, labels[n])
+            writer.writerow(data)
+    print(f"Sensitivity data saved to {sens_file}")
+
+
+
 
 if __name__ == "__main__":
     nominal_dir = os.path.join('examples','hopper','reference_linear','strict_nocost')
