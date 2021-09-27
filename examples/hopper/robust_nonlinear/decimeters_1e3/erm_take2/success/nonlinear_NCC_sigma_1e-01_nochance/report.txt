@@ -1,0 +1,18 @@
+Solved with SNOPT/fortran
+Optimization successful? True
+Optimal cost = 5111.632828652885
+SNOPT Exit Status 1: optimality conditions satisfied
+Infeasible constraints: set()
+Individual Costs: 
+DistanceERMCost: 	 4.8723E+03
+ControlCost: 	 1.0425E+02
+StateCost: 	 1.3509E+02
+
+Constraint Violations: 
+dynamics: 	 2.1807E-06
+joint_limits: 	 2.4428E-17
+sliding_velocity: 	 8.0777E-06
+friction_cone: 	 1.7121E-12
+StateConstraint: 	 8.9382E-13
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00

@@ -1,0 +1,19 @@
+Solved with SNOPT/fortran
+Optimization successful? False
+Optimal cost = 15926.887285789742
+SNOPT Exit Status 41: current point cannot be improved
+Infeasible constraints: {'normal_distance', 'sliding_velocity'}
+Individual Costs: 
+DistanceERMCost: 	 1.5661E+04
+ControlCost: 	 1.4785E+02
+StateCost: 	 1.1814E+02
+
+Constraint Violations: 
+dynamics: 	 2.2810E-04
+joint_limits: 	 2.4572E-17
+friction_cone: 	 4.2396E-08
+sliding_velocity: 	 2.3795E-03
+normal_distance: 	 3.0937E-03
+StateConstraint: 	 7.9931E-13
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00

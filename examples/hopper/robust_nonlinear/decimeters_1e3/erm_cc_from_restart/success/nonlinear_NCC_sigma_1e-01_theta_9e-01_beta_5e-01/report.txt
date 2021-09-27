@@ -1,0 +1,19 @@
+Solved with SNOPT/fortran
+Optimization successful? True
+Optimal cost = 1653.020125247377
+SNOPT Exit Status 3: requested accuracy could not be achieved
+Infeasible constraints: {'sliding_velocity'}
+Individual Costs: 
+DistanceERMCost: 	 1.4217E+03
+ControlCost: 	 1.0637E+02
+StateCost: 	 1.2497E+02
+
+Constraint Violations: 
+dynamics: 	 6.4650E-06
+joint_limits: 	 2.4403E-17
+friction_cone: 	 3.4290E-09
+sliding_velocity: 	 1.9587E-04
+normal_distance: 	 1.5907E-05
+StateConstraint: 	 5.6491E-13
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00
