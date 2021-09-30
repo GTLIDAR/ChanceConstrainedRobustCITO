@@ -15,7 +15,9 @@ colors = {'blue': np.array([0.0000, 0.4470, 0.7410, 1.]),
         'white':  np.array([1., 1., 1., 1.]),
         'grey':   np.array([0.8, 0.8, 0.8, 1.]),
         'lightgrey': np.array([0.4, 0.4, 0.4, 1.]),
-        'medgrey': np.array([0.5, 0.5, 0.5, 1.])}
+        'medgrey': np.array([0.5, 0.5, 0.5, 1.]),
+        'brown': np.array([0.549, 0.337, 0.294, 1.0]),
+        'pink': np.array([0.890, 0.467, 0.761, 1.0])}
 
 #Helper function
 def weld_base_to_world(vis, model_index, translation=np.zeros((3,))):
