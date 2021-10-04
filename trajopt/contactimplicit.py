@@ -7,6 +7,7 @@ Luke Drnach
 October 5, 2020
 """
 import numpy as np 
+import utilities as utils
 from matplotlib import pyplot as plt
 from pydrake.all import MathematicalProgram, PiecewisePolynomial
 from pydrake.autodiffutils import AutoDiffXd
@@ -60,6 +61,7 @@ class ContactImplicitDirectTranscription():
         self.plant_ad = self.plant_f.toAutoDiffXd()       
         self.context_ad = self.plant_ad.multibody.CreateDefaultContext()
         self.options = options
+        self.printer=None
         # Create MultibodyForces
         MBF = MultibodyForces_[float]
         self.mbf_f = MBF(self.plant_f.multibody)
@@ -67,6 +69,8 @@ class ContactImplicitDirectTranscription():
         self.mbf_ad = MBF_AD(self.plant_ad.multibody)
         # Create the mathematical program
         self.prog = MathematicalProgram()
+        # Set force scaling
+        self.force_scale = 1
         # Check for floating DOF
         self._check_floating_dof()
         # Add decision variables to the program
@@ -148,7 +152,7 @@ class ContactImplicitDirectTranscription():
         elif self.options.ncc_implementation == NCCImplementation.NONLINEAR and self.options.slacktype == NCCSlackType.VARIABLE_SLACK:
             self.slacks = self.prog.NewContinuousVariables(rows=1,cols=self.num_time_samples, name='slacks')
         else:
-            self.slacks = self.prog.NewContinuousVariables(rows=2*self.numN + self.numT, cols=self.num_time_samples, name='slacks')
+            self.slacks = None
             
     def _add_dynamic_constraints(self):
         """Add constraints to enforce rigid body dynamics and joint limits"""
@@ -260,6 +264,8 @@ class ContactImplicitDirectTranscription():
         ind = np.cumsum([self.h.shape[1], self.x.shape[0], self.x.shape[0], self.u.shape[0], self._normal_forces.shape[0]])
         h, x1, x2, u, fN, fT = np.split(z, ind)
         u = u
+        fT = fT * self.force_scale
+        fN = fN * self.force_scale
         # fN = fN * h * 100
         # fT = fT * h * 100
         # Split configuration and velocity from state
@@ -457,8 +463,10 @@ class ContactImplicitDirectTranscription():
         if utraj is not None:
             self.prog.SetInitialGuess(self.u, utraj)
         if ltraj is not None:
+            ltraj[0:self.numN + self.numT,:] = ltraj[0:self.numN + self.numT,:] / self.force_scale
             self.prog.SetInitialGuess(self.l, ltraj)
         if jltraj is not None:
+            jltraj = jltraj / self.force_scale
             self.prog.SetInitialGuess(self.jl, jltraj)
         if straj is not None:
             self.prog.SetInitialGuess(self.slacks, straj)
@@ -598,13 +606,16 @@ class ContactImplicitDirectTranscription():
     def reconstruct_reaction_force_trajectory(self, soln):
         """Returns the reaction force trajectory from the solution"""
         t = self.get_solution_times(soln)
+        l = soln.GetSolution(self.l)
+        l[0:self.numN + self.numT,:] = l[0:self.numN + self.numT,:] * self.force_scale
         return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.l))
     
     def reconstruct_limit_force_trajectory(self, soln):
         """Returns the joint limit force trajectory from the solution"""
         if self.Jl is not None:
             t = self.get_solution_times(soln)
-            return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.jl))
+            jl = soln.GetSolution(self.jl) * self.force_scale
+            return PiecewisePolynomial.FirstOrderHold(t, jl)
         else:
             return None
             
@@ -631,7 +642,7 @@ class ContactImplicitDirectTranscription():
 
     def reconstruct_slack_trajectory(self, soln):
         # if self.slacks:
-        if bool(self.slacks):
+        if self.slacks is not None:
             t = self.get_solution_times(soln)
             return PiecewisePolynomial.FirstOrderHold(t, soln.GetSolution(self.slacks))
         else:
@@ -643,9 +654,9 @@ class ContactImplicitDirectTranscription():
         input = self.reconstruct_input_trajectory(soln)
         lforce = self.reconstruct_reaction_force_trajectory(soln)
         jlforce = self.reconstruct_limit_force_trajectory(soln)
-        # slacks = self.reconstruct_slack_trajectory(soln)
-        # return (state, input, lforce, jlforce, slacks)
-        return (state, input, lforce, jlforce)
+        slacks = self.reconstruct_slack_trajectory(soln)
+        return (state, input, lforce, jlforce, slacks)
+        #return (state, input, lforce, jlforce)
 
     def get_solution_times(self, soln):
         """Returns a vector of times for the knotpoints in the solution"""
@@ -656,23 +667,33 @@ class ContactImplicitDirectTranscription():
     def result_to_dict(self, soln):
         """ unpack the trajectories from the program result and store in a dictionary"""
         t = self.get_solution_times(soln)
-        # x, u, f, jl, s = self.reconstruct_all_trajectories(soln)
-        x, u, f, jl = self.reconstruct_all_trajectories(soln)
+        x, u, f, jl, s = self.reconstruct_all_trajectories(soln)
+        #x, u, f, jl = self.reconstruct_all_trajectories(soln)
         if jl is not None:
             jl = jl.vector_values(t)
-        # if s is not None:
-        #     s = s.vector_values(t)
+        if s is not None:
+            s = s.vector_values(t)
+
+
+
         soln_dict = {"time": t,
                     "state": x.vector_values(t),
                     "control": u.vector_values(t), 
                     "force": f.vector_values(t),
                     "jointlimit": jl,
-                    # "slacks": s,
+                    "slacks": s,
                     "solver": soln.get_solver_id().name(),
                     "success": soln.is_success(),
                     "exit_code": soln.get_solver_details().info,
                     "final_cost": soln.get_optimal_cost()
                     }
+        # Get infeasible constraint names
+        if soln.get_solver_id().name() == "SNOPT/fortran":
+            exit_code = soln.get_solver_details().info
+            soln_dict['exit_msg'] = utils.SNOPT_DECODER[exit_code]
+            # Filter out the empty infeasible constraints
+            infeasibles = soln.GetInfeasibleConstraintNames(self.prog)
+            soln_dict['infeasible'] = [name.split("[")[0] for name in infeasibles]
         return soln_dict
 
     def set_slack(self, val):
@@ -720,7 +741,7 @@ class ContactImplicitDirectTranscription():
         else:
             raise NotImplementedError("Setting cost penalty is only implemented for option NCCImplementation.COST")
 
-    def enable_cost_display(self, display='terminal'):
+    def enable_cost_display(self, display='terminal', title=None):
         """
         Add a visualization callback to print/show the cost values and constraint violations at each iteration
 
@@ -729,9 +750,9 @@ class ContactImplicitDirectTranscription():
                      "figure" prints the costs and constraints to a figure window
                      "all"    prints the costs and constraints to the terminal and to a figure window
         """
-        printer = MathProgIterationPrinter(prog=self.prog, display=display)
+        self.printer = MathProgIterationPrinter(prog=self.prog, display=display, title=title)
         all_vars = self.prog.decision_variables()
-        self.prog.AddVisualizationCallback(printer, all_vars)
+        self.prog.AddVisualizationCallback(self.printer, all_vars)
 
     def enable_iteration_visualizer(self):
         """

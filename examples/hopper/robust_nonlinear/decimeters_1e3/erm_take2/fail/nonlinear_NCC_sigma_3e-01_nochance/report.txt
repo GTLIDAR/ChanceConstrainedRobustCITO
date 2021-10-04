@@ -1,0 +1,18 @@
+Solved with SNOPT/fortran
+Optimization successful? False
+Optimal cost = 131249.50653911007
+SNOPT Exit Status 43: cannot satisfy the general constraints
+Infeasible constraints: {'dynamics', 'sliding_velocity'}
+Individual Costs: 
+DistanceERMCost: 	 1.2954E+05
+ControlCost: 	 1.0424E+03
+StateCost: 	 6.7158E+02
+
+Constraint Violations: 
+dynamics: 	 4.1636E+01
+joint_limits: 	 3.3547E-15
+sliding_velocity: 	 6.1061E+02
+friction_cone: 	 9.5207E-10
+StateConstraint: 	 2.4810E-12
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00

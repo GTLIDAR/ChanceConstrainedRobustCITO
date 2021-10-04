@@ -1,0 +1,18 @@
+Solved with SNOPT/fortran
+Optimization successful? False
+Optimal cost = 58995.33878071593
+SNOPT Exit Status 44: ill-conditioned null-space basis
+Infeasible constraints: {'dynamics', 'sliding_velocity'}
+Individual Costs: 
+DistanceERMCost: 	 5.8399E+04
+ControlCost: 	 1.9430E+02
+StateCost: 	 4.0196E+02
+
+Constraint Violations: 
+dynamics: 	 5.6482E-02
+joint_limits: 	 2.3454E-17
+sliding_velocity: 	 6.4105E-01
+friction_cone: 	 6.7820E-06
+StateConstraint: 	 9.6703E-13
+EqualTimeConstraints: 	 0.0000E+00
+TimestepConstraint: 	 0.0000E+00

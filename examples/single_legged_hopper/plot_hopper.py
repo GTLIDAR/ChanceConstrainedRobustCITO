@@ -8,6 +8,7 @@ from scipy.special import erfinv
 from systems.timestepping import TimeSteppingMultibodyPlant
 from utilities import load
 import pickle
+
 _file = "systems/urdf/single_legged_hopper.urdf"
 plant = TimeSteppingMultibodyPlant(file= _file)
 body_inds = plant.multibody.GetBodyIndices(plant.model_index)

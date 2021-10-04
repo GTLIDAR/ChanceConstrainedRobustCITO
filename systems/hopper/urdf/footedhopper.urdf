@@ -1,0 +1,220 @@
+<?xml version="1.0"?>
+<robot name = "footedhopper">
+    <material name="grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+    </material>
+    <material name="silver">
+        <color rgba="0.913725490196 0.913725490196 0.847058823529 1.0"/>
+    </material>
+    <!-- links section -->>
+  	<link name="xtrans"/>
+  	<link name="ztrans"/>
+	<link name="base">
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value="10"/>
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+        </inertial>
+		<visual>
+			<origin xyz = "0 0 0" />
+			<geometry>
+				<sphere radius="0.2"/>
+			</geometry>
+			<material name = "grey"/>
+		</visual>
+	</link>
+	<link name="thigh">
+        <inertial>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.083" ixy="0.0" ixz="0.0" iyy="0.083" iyz="0.0" izz="0.00001"/>
+        </inertial>
+		<visual>
+			<origin xyz = "0 0 -0.5" />
+			<geometry>
+				<cylinder radius = "0.05" length = "1"  />
+			</geometry>
+            <material name = "grey"/>
+		</visual>
+	</link>
+	<link name="calf">
+        <inertial>
+            <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+            <mass value="1"/>
+            <inertia ixx="0.083" ixy="0.0" ixz="0.0" iyy="0.083" iyz="0.0" izz="0.00001"/>
+        </inertial>
+		<visual>
+			<origin xyz = "0 0 -0.5" />
+			<geometry>
+				<cylinder radius = "0.05" length = "1"  />
+			</geometry>
+            <material name = "grey"/>
+		</visual>
+	</link>
+	<link name="foot">
+		<visual>
+          	<origin xyz = "0 0 0" rpy="0 0 0" />
+			<geometry>
+				<cylinder radius = "0.05" length = "0.333"  />
+			</geometry>
+            <material name = "grey"/>
+		</visual>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.333"/>
+            <inertia ixx="0.0031" ixy="0.0" ixz="0.0" iyy="0.0031" iyz="0.0" izz="0.00001"/>
+        </inertial>
+		<collision>
+            <origin xyz="0 0 0.167" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision> -->
+        <!-- collision point 2 -->
+        <collision>
+        <origin xyz="0 0 -0.167"/>
+            <geometry>
+                <sphere radius="0"/>
+            </geometry>
+        </collision>
+	</link>
+    <!--These links are for visualization-->
+	<link name="knee_sphere">
+		<visual>
+        	<origin xyz="0 0 0" rpy="0 0 0"/>
+          	<geometry>
+              <sphere radius="0.05"/>
+          	</geometry>
+            <material name = "grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value = "0.0001"/>
+            <inertia ixx = "0.0001" iyy = "0.0001" izz = "0.0001" ixy = "0" ixz = "0" iyz = "0" />
+        </inertial>
+	</link>
+	<link name="foot_sphere">
+	    <visual>
+        	<origin xyz="0 0 0"/>
+          	<geometry>
+              <sphere radius="0.05"/>
+          	</geometry>
+            <material name = "grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value = "0.0001"/>
+            <inertia ixx = "0.0001" iyy = "0.0001" izz = "0.0001" ixy = "0" ixz = "0" iyz = "0" />
+        </inertial>
+	</link>
+	<link name="toe_sphere">
+	    <visual>
+        	<origin xyz="0 0 0"/>
+          	<geometry>
+              <sphere radius="0.05"/>
+          	</geometry>
+            <material name = "grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value = "0.0001"/>
+            <inertia ixx = "0.0001" iyy = "0.0001" izz = "0.0001" ixy = "0" ixz = "0" iyz = "0" />
+        </inertial>
+	</link>
+	<link name="ankle_sphere">
+	    <visual>
+        	<origin xyz="0 0 0"/>
+          	<geometry>
+              <sphere radius="0.05"/>
+          	</geometry>
+            <material name = "grey"/>
+        </visual>
+        <inertial>
+            <origin xyz="0 0 0"/>
+            <mass value = "0.0001"/>
+            <inertia ixx = "0.0001" iyy = "0.0001" izz = "0.0001" ixy = "0" ixz = "0" iyz = "0" />
+        </inertial>
+	</link>
+	<!-- joints section -->>
+	<joint name="xslide" type="prismatic">
+      	<parent link="xtrans"/>
+      	<child link="ztrans"/>
+      	<origin xyz="0 0 0"/>
+      	<axis xyz="1 0 0"/>
+	</joint>
+	<joint name="zslide" type="prismatic">
+      	<parent link="ztrans"/>
+      	<child link="base"/>
+      	<origin xyz="0 0 0"/>
+      	<axis xyz="0 0 1"/>
+	</joint>
+	<joint name="hip" type="revolute">
+		<parent link="base" />
+		<child link="thigh" />
+		<origin xyz="0 0 0" />
+		<axis xyz="0 -1 0" />
+		<limit lower="-1.57" upper="1.57"/>
+	</joint>
+	<joint name="knee" type="revolute">
+		<parent link="thigh" />
+		<child link="calf" />
+		<origin xyz="0 0 -1" />
+		<axis xyz = "0 -1 0" />
+		<limit lower="-2.09" upper="1.05"/>
+	</joint>
+	<joint name="ankle" type="revolute">
+      	<parent link="calf"/>
+      	<child link="foot"/>
+      	<origin xyz="0 0 -1"/>
+      	<axis xyz="0 -1 0"/>
+		<limit lower="0.5235" upper="2.618"/>
+	</joint>
+      
+    <!--These joint are for visualization-->
+	<joint name="kneecap" type="fixed">
+      <parent link="thigh"/>
+      <child link="knee_sphere"/>
+      <origin xyz="0 0 -1"/>
+      <axis xyz="1 0 0"/>
+	</joint>
+	<joint name="footcap" type="fixed">
+      <parent link="calf"/>
+      <child link="foot_sphere"/>
+      <origin xyz="0 0 -1"/>
+      <axis xyz="1 0 0"/>
+	</joint>
+	<joint name="toecap" type="fixed">
+      	<parent link="foot"/>
+      	<child link="toe_sphere"/>
+      	<origin xyz="0 0 0.167"/>
+      	<axis xyz="1 0 0"/>
+</joint>
+	<joint name="anklecap" type="fixed">
+      	<parent link="foot"/>
+      	<child link="ankle_sphere"/>
+      	<origin xyz="0 0 -0.167"/>
+      	<axis xyz="1 0 0"/>
+</joint>
+    <!-- actuator section -->
+    <transmission name = "hip_transmission">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="hip"/>
+        <actuator name="hip_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="knee_actuation">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="knee"/>
+        <actuator name="knee_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="ankle_actuation">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="ankle"/>
+        <actuator name="ankle_actuator">
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+</robot>

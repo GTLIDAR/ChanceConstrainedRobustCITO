@@ -1,9 +1,10 @@
 import numpy as np 
-from scipy.special import erfinv
+from scipy.special import erfinv, erf
 from trajopt.contactimplicit import ContactImplicitDirectTranscription
-from trajopt.constraints import NonlinearComplementarityFcn
-from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceConstrainedComplementarityLINEAR,ChanceConstrainedComplementarityNONLINEAR
+from trajopt.constraints import ChanceComplementarityFactory, NonlinearComplementarityFcn
+from trajopt.constraints import ConstantSlackNonlinearComplementarity, ComplementarityFactory, NCCImplementation, NCCSlackType, ChanceComplementarityFactory
 from trajopt.contactimplicit import OptimizationOptions, DecisionVariableList
+import pydrake.autodiffutils as ad
 
 class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     '''
@@ -35,6 +36,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         self.frictionBias = friction_param[1]
         self.ermFrictionMultiplier = friction_param[2]
         self.erm_option = optionERM
+        # Add an additional variable for the ERM length scale
+        self.__distance_scale = 1.
         # Chance Constraint options:
         #   option 1: strict contact constraints
         #   option 2: chance constraint relaxation for normal distance
@@ -55,7 +58,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         elif self.erm_option is 2:
             print("Uncertainty from normal distance")
             distanceErmCost = lambda z: self.distanceERMCost(z)
-            self.add_nonintegrated_running_cost(distanceErmCost,  [self.x, self.l], name = "DistanceERMCost")
+            self.add_nonintegrated_running_cost(distanceErmCost,  [self.x, self.l[:self.numN,:]], name = "DistanceERMCost")
         elif self.erm_option is 3:
             print("Uncertainty from fricion cone")
             frictionConeErmCost = lambda z: self.frictionConeERMCost(z)
@@ -88,6 +91,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         numN = self._normal_forces.shape[0]
         numT = self._tangent_forces.shape[0]
         factory = ComplementarityFactory(self.options.ncc_implementation, self.options.slacktype)
+        chance_factory = ChanceComplementarityFactory(self.options.ncc_implementation)
         self.sliding_cstr = factory.create(self._sliding_velocity, xdim = self.x.shape[0] + numN, zdim=numT)
         # Determine the variables according to implementation and slacktype options
         self.distance_vars = DecisionVariableList([self.x, self._normal_forces])
@@ -141,7 +145,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         elif self.cc_option is 2:
             print("Normal distance contact constraint relaxed")
             # self.distance_cstr = self._normal_distance_cc
-            self.distance_cstr = ChanceConstrainedComplementarityLINEAR(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
+            self.distance_cstr = chance_factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta=self.beta, theta=self.theta, sigma=self.sigma)
+            #self.distance_cstr = ChanceConstrainedComplementarityLINEAR(self._normal_distance, xdim=self.x.shape[0], zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
             self.friccone_cstr = factory.create(self._friction_cone, self.x.shape[0] + numN + numT, numN)
             # self.friccone_cstr = NonlinearComplementarityFcn(self._friction_cone, 
             #                                         xdim = self.x.shape[0] + self.numN + self.numT,
@@ -174,7 +179,8 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
             #                                         slack = 0.)
             self.distance_cstr = factory.create(self._normal_distance, xdim=self.x.shape[0], zdim=numN)
             # self.friccone_cstr = self._friction_cone_cc
-            self.friccone_cstr = ChanceConstrainedComplementarityNONLINEAR(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
+            self.friccone_cstr = chance_factory.create(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim = numN, beta = self.beta, theta=self.theta, sigma=self.sigma)
+            #self.friccone_cstr = ChanceConstrainedComplementarityNONLINEAR(self._friction_cone, xdim=self.x.shape[0] + numN + numT, zdim=numN, beta = self.beta, theta = self.theta, sigma = self.sigma)
             if self.erm_option is 1:
                 print("no uncertainty, friction cone cc relaxation")
                 for n in range(0, self.num_time_samples):
@@ -270,6 +276,9 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
     #                     vars=np.concatenate((self.x[:,n], self.l[:,n]), axis=0),
     #                     description="friction_cone")
 
+    def _normal_distance(self, state):
+        return super()._normal_distance(state) * self.__distance_scale
+
     def _friction_cone_cc(self, vars):
         """
         chance constraint relaxation for friction cone
@@ -305,6 +314,7 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         plant.multibody.SetPositionsAndVelocities(context, x)    
         phi = plant.GetNormalDistances(context)
         lb, ub = self._chance_constraint(self.sigma)
+        
         return np.concatenate((phi - lb, fN, phi*fN - ub*fN))
     
     def _chance_constraint(self, sigma):
@@ -326,13 +336,17 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         """
         
         # Check if the decision variables are floats
-        plant, context, _ = self._autodiff_or_float(z)
-        ind = np.cumsum([self.x.shape[0], self.numN])
+        #plant, context, _ = self._autodiff_or_float(z)
+        #ind = np.cumsum([self.x.shape[0], self.numN])
         # Split the variables from the decision list
-        x, fN, fT = np.split(z, ind)
-        plant.multibody.SetPositionsAndVelocities(context, x)    
-        phi = plant.GetNormalDistances(context)
-        nContact = len(phi)
+        #x, fN, fT = np.split(z, ind)
+        x, fN = np.split(z, [self.x.shape[0]])
+        phi = self._normal_distance(x)
+        
+        # plant.multibody.SetPositionsAndVelocities(context, x)    
+        # phi = plant.GetNormalDistances(context)
+        # phi = self._normal_distance(z)
+        # nContact = len(phi)
         
         assert self.distanceVariance >= 0, "Distribution is degenerative"
         
@@ -388,29 +402,35 @@ class ChanceConstrainedContactImplicit(ContactImplicitDirectTranscription):
         prob_density = (1/(sd * np.sqrt(2 * np.pi)) ) * np.exp(-0.5*((x-mean)**2/sd**2))
         return prob_density
 
-    def _cdf (self, x, mean, sd):
+    def _cdf (self, x, mean, sd):        
         cum_dist = np.zeros(len(x))
         A = self._erf((x - mean)/(sd * np.sqrt(2)))
         cum_dist = 1/2 *(1 + A)
         return cum_dist
         
     def _erf(self, x):
-        # save the sign of x
-        sign = np.zeros(x.shape)
-        sign[x >= 0] = 1
-        sign[x < 0] = -1
-        x = abs(x)
-        # constants
-        a1 =  0.254829592
-        a2 = -0.284496736
-        a3 =  1.421413741
-        a4 = -1.453152027
-        a5 =  1.061405429
-        p  =  0.3275911
-        # A&S formula 7.1.26
-        t = 1.0/(1.0 + p*x)
-        y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
-        return sign*y # erf(-x) = -erf(x)
+        # Check for autodiff or float implementations
+        if x.dtype == "float":
+            return erf(x)
+        else:
+            xval = ad.autoDiffToValueMatrix(x)
+            xgrad = ad.autoDiffToGradientMatrix(x)
+            cval = erf(xval)
+            cgrad = 2/np.sqrt(np.pi) * np.exp(-xval ** 2)
+            cgrad = cgrad * xgrad
+            return ad.initializeAutoDiffGivenGradientMatrix(cval, cgrad)
+
+    @property
+    def distance_scale(self):
+        return self.__distance_scale
+
+    @distance_scale.setter
+    def distance_scale(self, val):
+        if isinstance(val, (int, float)) and val > 0 and not isinstance(val, bool):
+            self.__distance_scale = val
+        else:
+            raise TypeError("val must be a positive numeric scalar")
+
 
 class ChanceConstrainedComplementarityFcn(NonlinearComplementarityFcn):
     def __init__(self,  fcn, chance_param = [0.5, 0.5, 0], xdim = 0, zdim = 1, slack = 0):

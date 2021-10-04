@@ -4,14 +4,22 @@
     "settings":{
         "git.path": "/usr/bin/git"
     },
-    "forwardPorts": [3000],
+    "forwardPorts": [3000, 7000],
     "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
         "smilerobotics.urdf"
     ],
+<<<<<<< HEAD
     "containerEnv":{
         // "DISPLAY": "128.61.57.134:0.0"
         "DISPLAY": "169.254.154.55:0.0"
     }
+=======
+    "runArgs": [
+        "--net","host",
+        "-e","DISPLAY=${env:DISPLAY}",
+        "-v","/tmp/.X11-unix:/tmp/.X11-unix"
+    ]
+>>>>>>> a0fc9078da18447e4ca819abc0a78638588f0155
 }
